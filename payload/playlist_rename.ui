@@ -1,0 +1,12 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<ui>
+  <string id="CFW_RENAME_PLAYLIST" text="Rename Playlist"/>
+  <!-- Hold Center on a playlist, choose Rename Playlist: run the action, then open
+       the stock Search screen with its click-wheel keyboard showing, the same
+       navigation Music > Search uses (see Search_Main_Screen events). -->
+  <screen-event screen="MediaLists_Playlists_Screen"
+                event="contextualMenu.CFW_RenamePlaylist"
+                handler="CFW_RenamePlaylist"
+                action="navigator.PushScreen"
+                arguments="Search_Main_Screen, Search_Main_Screen_WithKeyboardNow"/>
+</ui>

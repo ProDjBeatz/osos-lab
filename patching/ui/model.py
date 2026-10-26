@@ -28,6 +28,9 @@ class ScreenEvent:
     screen: str | int
     event: str
     handler: str
+    # Optional native follow-up, e.g. navigator.PushScreen with its arguments.
+    action: str = ""
+    arguments: tuple[str, ...] = ()
 
 
 @dataclass

@@ -133,3 +133,10 @@ PATCH_CALL(OSOS_ARTISTS_CANCEL_APPEND_CALL, OSOS_CONTEXT_MENU_APPEND,
 /* Albums, Artists and other library lists share this dispatcher. */
 PATCH_JUMP(OSOS_MEDIA_LIST_ACTION_ENTRY, 0xe92d41f0, 0xe1a07001, cfw_media_list_action);
 PATCH_CALL(OSOS_MEDIA_LIST_OTG_ADD_CALL, OSOS_OTG_ADD_BROWSER, cfw_queue_selection);
+
+/* Rename Playlist: remember the held row, then add the item before Cancel. */
+PATCH_POINTER(OSOS_PLAYLISTS_MENU_SLOT, OSOS_PLAYLISTS_BUILD_MENU, cfw_playlists_menu);
+PATCH_POINTER(OSOS_PLAYLISTS_TRANSITION_MENU_SLOT, OSOS_PLAYLISTS_BUILD_MENU,
+              cfw_playlists_menu);
+PATCH_CALL(OSOS_PLAYLISTS_CANCEL_APPEND_CALL, OSOS_CONTEXT_MENU_APPEND,
+           cfw_playlists_menu_cancel);

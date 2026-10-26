@@ -79,3 +79,10 @@
 #define OSOS_MEDIA_LIST_OTG_ADD_CALL 0x0820f9cc
 #define OSOS_ALBUMS_CANCEL_APPEND_CALL 0x0821c004
 #define OSOS_ARTISTS_CANCEL_APPEND_CALL 0x0821fee8
+
+/* Rename Playlist: Playlists hold menu (TSilverMediaListCntlr_Playlists). */
+#define OSOS_PLAYLISTS_BUILD_MENU 0x08229618
+#define OSOS_PLAYLISTS_MENU_SLOT 0x089a96e4
+/* Same builder via TSilverCntlrTransitionAddon<..._Playlists>. */
+#define OSOS_PLAYLISTS_TRANSITION_MENU_SLOT 0x089a535c
+#define OSOS_PLAYLISTS_CANCEL_APPEND_CALL 0x08229698

@@ -200,12 +200,16 @@ class Resources:
         self.added[key] = Resource(data)
 
     def bind_screen_event(self, binding):
-        encoded = (
-            serialized_string(binding.event)
-            + b"1"
-            + serialized_string(binding.handler)
-            + struct.pack("<I", 0)
-        )
+        encoded = serialized_string(binding.event) + b"1" + serialized_string(binding.handler)
+        if binding.action:
+            encoded += (
+                struct.pack("<I", 1)
+                + serialized_string(binding.action)
+                + struct.pack("<I", len(binding.arguments))
+                + b"".join(serialized_string(argument) for argument in binding.arguments)
+            )
+        else:
+            encoded += struct.pack("<I", 0)
         for _, layout in blocks(self.original["SLst", self.native(binding.screen)]):
             self.extend_events("SEVT", word(layout, 0), [encoded])
 

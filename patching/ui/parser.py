@@ -224,13 +224,23 @@ class Parser:
         )
 
     def parse_screen_event(self, node):
-        attributes(node, "screen event handler")
+        attributes(node, "screen event handler", "action arguments")
         if not node.attrib["event"] or not node.attrib["handler"]:
             raise ValueError("Screen events require an event and handler")
+        action = node.get("action", "")
+        arguments = tuple(
+            argument.strip()
+            for argument in node.get("arguments", "").split(",")
+            if argument.strip()
+        )
+        if arguments and not action:
+            raise ValueError("Screen event arguments require an action")
         return ScreenEvent(
             resource_reference(node.attrib["screen"]),
             node.attrib["event"],
             node.attrib["handler"],
+            action,
+            arguments,
         )
 
     def apply_settings_entry(self):

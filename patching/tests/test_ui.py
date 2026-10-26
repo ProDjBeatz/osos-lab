@@ -197,6 +197,34 @@ class UiTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             resources.bind_screen_event(document.events[0])
 
+    def test_screen_event_action_matches_native_navigation_encoding(self):
+        document = parser.parse(
+            '<ui><screen-event screen="10" event="contextualMenu.CFW_Rename" '
+            'handler="CFW_Rename" action="navigator.PushScreen" '
+            'arguments="Search_Main_Screen, Search_Main_Screen_NoKeyboard"/></ui>'
+        )
+        resources = Resources([])
+        resources.original = {
+            ("SLst", 10): pack_blocks([(0, struct.pack("<I", 20))]),
+            ("SEVT", 20): struct.pack("<I", 0),
+        }
+        resources.bind_screen_event(document.events[0])
+        data = resources.added["SEVT", 20].data
+        self.assertEqual(resources.added["SEVT", 20].word(0), 1)
+        # Same layout as the stock Music > Search row event.
+        self.assertIn(
+            b"\x0a\x00\x00\x00CFW_Rename\x01\x00\x00\x00"
+            b"\x14\x00\x00\x00navigator.PushScreen\x02\x00\x00\x00"
+            b"\x12\x00\x00\x00Search_Main_Screen"
+            b"\x1d\x00\x00\x00Search_Main_Screen_NoKeyboard",
+            data,
+        )
+        with self.assertRaises(ValueError):
+            parser.parse(
+                '<ui><screen-event screen="10" event="e" handler="h" '
+                'arguments="x"/></ui>'
+            )
+
     def test_screen_events_extend_each_layout_without_replacing_stock_events(self):
         document = parser.parse(
             '<ui><screen-event screen="10" event="contextualMenu.CFW_PlayNext" '
