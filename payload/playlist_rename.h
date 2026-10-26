@@ -7,4 +7,7 @@
 int cfw_playlist_rename_action(void *controller, const char *action,
                                uint32_t argument);
 
+/* Load saved playlist renames (called with the other CFW settings at boot). */
+void cfw_playlist_names_load(void);
+
 #endif

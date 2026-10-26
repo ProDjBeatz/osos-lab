@@ -91,6 +91,11 @@
 #define OSOS_PLAYLISTS_ROW_ITEM 0x081691a8
 /* Set a playlist's name from a length-prefixed UTF-16 string. */
 #define OSOS_PLAYLIST_SET_NAME 0x0805c3d8
+/* Get a playlist's name (length-prefixed UTF-16); entry hooked for saved renames. */
+#define OSOS_PLAYLIST_GET_NAME 0x08049624
+#define OSOS_PLAYLIST_GET_NAME_RESUME 0x0804962c
+/* 64-bit iTunesDB persistent ID (mhyp +0x1c) stored by the playlist importer. */
+#define OSOS_PLAYLIST_PERSISTENT_ID 0x30
 /* Search keyboard text: 'Str ' 0x7684 in the search model (lookup 0x7680). */
 #define OSOS_SEARCH_MODEL_LOOKUP 0x081c7d44
 #define OSOS_SEARCH_MODEL_ID 0x7680

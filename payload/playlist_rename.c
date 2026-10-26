@@ -11,12 +11,18 @@
  * The Search keyboard keeps its text in the search model's 'Str ' 0x7684
  * resource; every keystroke rewrites it through OSOS_MODEL_RESOURCE_SET. The
  * playlist is renamed in memory with the native set-name routine used when
- * On-The-Go and Genius playlists are saved. Renames do not yet persist across
- * reboot or sync.
+ * On-The-Go and Genius playlists are saved.
+ *
+ * Renames persist in iPod_Control\Device\CFWNames, one entry per playlist keyed
+ * by its iTunesDB persistent ID. The iPod never writes iTunesDB, so after a reboot
+ * or sync the library brings back the computer's name; the playlist name getter is
+ * hooked to show the saved name instead. Newly saved On-The-Go playlists get new
+ * IDs, so they never inherit an old rename.
  */
 #include "osos.h"
 #include "cfw.h"
 #include "patch.h"
+#include "preferences.h"
 #include "patches/sites.h"
 #include "playlist_rename.h"
 #include "playlist_rename_ui.h"
@@ -36,6 +42,119 @@ struct native_name {
     uint16_t length;
     uint16_t text[NAME_MAX];
 };
+
+/* Saved renames, keyed by the iTunesDB playlist persistent ID (mhyp +0x1c, which
+   the importer stores at list +0x30). Names are length-prefixed UTF-16. */
+#define SAVED_MAX 32
+#define SAVED_UNITS 63
+#define SAVED_MAGIC 0x4e574643u /* "CFWN" */
+#define SAVED_VERSION 2
+
+struct saved_name {
+    uint32_t id[2];
+    uint16_t renamed[SAVED_UNITS + 1];
+};
+
+static struct {
+    uint32_t magic, version, count;
+    struct saved_name entries[SAVED_MAX];
+} saved;
+
+static const struct osos_path saved_path = {0, "iPod_Control\\Device\\CFWNames"};
+
+int cfw_playlist_get_name_original(void *list, struct native_name *name);
+
+static const uint32_t *playlist_id(void *list)
+{
+    return (const uint32_t *)((const uint8_t *)list + OSOS_PLAYLIST_PERSISTENT_ID);
+}
+
+static struct saved_name *saved_for(void *list)
+{
+    const uint32_t *id = playlist_id(list);
+    for (uint32_t i = 0; i < saved.count; i++)
+        if (saved.entries[i].id[0] == id[0] && saved.entries[i].id[1] == id[1])
+            return &saved.entries[i];
+    return NULL;
+}
+
+static int same_name(const uint16_t *a, const uint16_t *b)
+{
+    for (uint16_t i = 0; i <= a[0]; i++)
+        if (a[i] != b[i])
+            return 0;
+    return 1;
+}
+
+/* No libc in the payload: keep GCC from turning this copy loop into memcpy. */
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
+static void copy_name(uint16_t *to, const uint16_t *from, uint16_t limit)
+{
+    uint16_t n = from[0] < limit ? from[0] : limit;
+    to[0] = n;
+    for (uint16_t i = 1; i <= n; i++)
+        to[i] = from[i];
+}
+
+/* Boot: loaded from cfw_preferences_hook with the other CFW settings. */
+void cfw_playlist_names_load(void)
+{
+    if (!cfw_preferences_read(&saved_path, &saved, sizeof(saved)) ||
+        saved.magic != SAVED_MAGIC || saved.version != SAVED_VERSION ||
+        saved.count > SAVED_MAX)
+        saved.count = 0;
+    saved.magic = SAVED_MAGIC;
+    saved.version = SAVED_VERSION;
+}
+
+/* One entry per playlist, overwritten on every rename; the whole fixed-size file
+   is rewritten in place. Renaming back to the library's name drops the entry. */
+static void remember(void *list, const struct native_name *renamed)
+{
+    const uint32_t *id = playlist_id(list);
+    struct native_name library;
+    if ((!id[0] && !id[1]) || renamed->length > SAVED_UNITS)
+        return;
+    library.length = 0;
+    cfw_playlist_get_name_original(list, &library);
+    struct saved_name *entry = saved_for(list);
+    if (same_name(&library.length, &renamed->length)) {
+        if (!entry)
+            return;
+        struct saved_name *last = &saved.entries[--saved.count];
+        entry->id[0] = last->id[0];
+        entry->id[1] = last->id[1];
+        copy_name(entry->renamed, last->renamed, SAVED_UNITS);
+    } else {
+        if (!entry) {
+            if (saved.count == SAVED_MAX)
+                return;
+            entry = &saved.entries[saved.count++];
+            entry->id[0] = id[0];
+            entry->id[1] = id[1];
+        }
+        copy_name(entry->renamed, &renamed->length, SAVED_UNITS);
+    }
+    cfw_preferences_write(&saved_path, &saved, sizeof(saved));
+}
+
+/* OSOS_PLAYLIST_GET_NAME entry: show the saved new name for this playlist. */
+PATCH_ARM int cfw_playlist_get_name(void *list, struct native_name *name)
+{
+    int result = cfw_playlist_get_name_original(list, name);
+    struct saved_name *entry = list && name ? saved_for(list) : NULL;
+    if (entry)
+        copy_name(&name->length, entry->renamed, SAVED_UNITS);
+    return result;
+}
+
+static void get_name(void *list, struct native_name *name)
+{
+    typedef int (*get)(void *, struct native_name *);
+    name->length = 0;
+    /* Through the hooked entry, so this is the name the user sees. */
+    ((get)OSOS_PLAYLIST_GET_NAME)(list, name);
+}
 
 /* Row highlighted when the Playlists hold menu was built; -1 when none. */
 static int menu_row = -1;
@@ -129,6 +248,7 @@ static int rename_to(void *list, const char *text)
     if (!n)
         return -1;
     name.length = n;
+    remember(list, &name);
     return ((set_name)OSOS_PLAYLIST_SET_NAME)(list, &name);
 }
 
@@ -159,10 +279,17 @@ int cfw_playlist_rename_action(void *controller, const char *action,
         rename_reset();
         rename_list = playlist_at(menu_row);
         rename_pending = rename_list != NULL;
-        /* Start from an empty name instead of the last search. */
         void *model = rename_list ? search_model() : NULL;
         if (model) {
-            set_query(model, "", 0);
+            /* Start from the playlist's current name (ASCII; others become '?'). */
+            struct native_name current;
+            char text[SAVED_UNITS + 1];
+            uint16_t n = 0;
+            get_name(rename_list, &current);
+            for (; n < current.length && n < SAVED_UNITS; n++)
+                text[n] = current.text[n] < 0x80 ? (char)current.text[n] : '?';
+            text[n] = 0;
+            set_query(model, text, n);
             /* TSearchCntlr (vtable +0xec) restores Search_Main_Screen_WithKeyboard
                when this "keyboard was showing" flag is set; the rename screen has
                only its own layout, so switching would abort. */
