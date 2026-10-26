@@ -50,7 +50,7 @@ static int selected_item(void *controller, enum song_source source,
 static int song_action(void *controller, enum song_source source,
                        const char *action, uint32_t argument)
 {
-    if (source != NOW_PLAYING && cfw_string_equal(action, "CFW_AddToPlaylist")) {
+    if (cfw_string_equal(action, "CFW_AddToPlaylist")) {
         /* The screen event then opens the playlist chooser. */
         if (argument != OSOS_ACTION_SUPPORT_QUERY) {
             struct osos_media_item item;
@@ -123,6 +123,7 @@ PATCH_ARM void cfw_now_playing_menu_cancel(struct osos_context_menu *menu,
                                            uint32_t label, const char *action,
                                            uint32_t flags)
 {
+    cfw_playlist_add_menu(menu);
     osos_context_menu_append(menu, CFW_SONG_INFO_LABEL, "CFW_SongInfo", 1);
     osos_context_menu_append(menu, label, action, flags);
 }

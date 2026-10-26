@@ -39,6 +39,11 @@
                 handler="CFW_AddToPlaylist"
                 action="navigator.PushScreen"
                 arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
+  <screen-event screen="NowPlaying_Screen"
+                event="contextualMenu.CFW_AddToPlaylist"
+                handler="CFW_AddToPlaylist"
+                action="navigator.PushScreen"
+                arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
   <screen-event screen="MediaLists_GeniusPlaylist_Screen"
                 event="contextualMenu.CFW_AddToPlaylist"
                 handler="CFW_AddToPlaylist"
