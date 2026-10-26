@@ -427,15 +427,39 @@ void cfw_playlist_add_from_coverflow(int album)
 /* The Playlists chooser reconfigures the library browser that Cover Flow's back
    side lists from; point it at the album again before returning to it, as the
    flip to the back side does (Cover Flow model vtable +0xdc). */
-static void restore_coverflow(void)
+static void show_coverflow_album(int album)
 {
     typedef void *(*get)(void);
     typedef void (*show_album)(void *, int);
-    int album = coverflow_album;
-    coverflow_album = -1;
     void *model = album >= 0 ? ((get)OSOS_COVERFLOW_MODEL_GET)() : NULL;
     if (model)
         ((show_album)osos_method(model, OSOS_COVERFLOW_MODEL_SHOW_ALBUM))(model, album);
+}
+
+/* Album to list again once Cover Flow is shown after the chooser closes: an add
+   changes the library, and its change notices re-point the browser after the
+   chooser's own handler has run. */
+static int coverflow_reshow = -1;
+
+static void restore_coverflow(void)
+{
+    int album = coverflow_album;
+    coverflow_album = -1;
+    coverflow_reshow = album;
+    show_coverflow_album(album);
+}
+
+int cfw_coverflow_appear_original(void *controller, int first);
+
+PATCH_ARM int cfw_coverflow_appear(void *controller, int first)
+{
+    int result = cfw_coverflow_appear_original(controller, first);
+    int album = coverflow_reshow;
+    coverflow_reshow = -1;
+    /* The first showing clears the back side itself; only a return re-lists. */
+    if (!first)
+        show_coverflow_album(album);
+    return result;
 }
 
 static void emit(void *controller, const char *event)
