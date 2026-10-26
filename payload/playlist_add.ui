@@ -1,0 +1,37 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<ui>
+  <string id="CFW_ADD_TO_PLAYLIST" text="Add to Playlist"/>
+  <!-- Playlist chooser: the stock Playlists controller and list, as a new screen
+       whose click adds the held song instead of opening the playlist. -->
+  <screen-clone id="CFW_AddToPlaylist"
+                screen="MediaLists_Playlists_Screen"
+                layout="MediaLists_Playlists_Screen_Default"
+                title="Add to Playlist"/>
+  <screen-event screen="CFW_AddToPlaylist_Screen"
+                event="list.chosen"
+                handler="CFW_AddToPlaylistChosen"/>
+  <screen-event screen="CFW_AddToPlaylist_Screen"
+                event="controller.CFW_AddedToPlaylist"
+                action="navigator.PopTopScreen"/>
+  <!-- Hold Center on a song, choose Add to Playlist: remember it, open the chooser. -->
+  <screen-event screen="MediaLists_Songs_Screen"
+                event="contextualMenu.CFW_AddToPlaylist"
+                handler="CFW_AddToPlaylist"
+                action="navigator.PushScreen"
+                arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
+  <screen-event screen="MediaLists_NestedPlaylists_Screen"
+                event="contextualMenu.CFW_AddToPlaylist"
+                handler="CFW_AddToPlaylist"
+                action="navigator.PushScreen"
+                arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
+  <screen-event screen="MediaLists_Genius_Screen"
+                event="contextualMenu.CFW_AddToPlaylist"
+                handler="CFW_AddToPlaylist"
+                action="navigator.PushScreen"
+                arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
+  <screen-event screen="MediaLists_GeniusPlaylist_Screen"
+                event="contextualMenu.CFW_AddToPlaylist"
+                handler="CFW_AddToPlaylist"
+                action="navigator.PushScreen"
+                arguments="CFW_AddToPlaylist_Screen, CFW_AddToPlaylist_Layout"/>
+</ui>

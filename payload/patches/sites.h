@@ -115,3 +115,27 @@
 #define OSOS_CONTROLLER_EMIT_EVENT 0x11c
 #define OSOS_CPP_STRING_INIT 0x083cf82c
 #define OSOS_CPP_STRING_DESTROY 0x083cf7d4
+
+/* Add to Playlist. Library (re)load: FUN_0805d6c8(media database), called at boot
+   and after a sync; both call sites are wrapped to re-apply saved additions. */
+#define OSOS_DATABASE_LOAD 0x0805d6c8
+#define OSOS_DATABASE_LOAD_BOOT_CALL 0x0804d7f0
+#define OSOS_DATABASE_LOAD_RELOAD_CALL 0x081aec20
+/* Media database: track data ('tdat') and the On-The-Go list, plus the byte the
+   native On-The-Go add sets so the playlist is written back. */
+#define OSOS_DATABASE_TRACK_DATA 0xf60
+#define OSOS_DATABASE_OTG_LIST 0xf40
+#define OSOS_DATABASE_OTG_STATE 0xf00
+#define OSOS_OTG_STATE_DIRTY 0xb96
+/* Track data list walk: first list ('tdat' +0x34) and the next-list routine. */
+#define OSOS_TRACK_DATA_FIRST_LIST 0x34
+#define OSOS_TRACK_DATA_NEXT_LIST 0x08048d18
+#define OSOS_TRACK_DATA_MAGIC 0x74646174u /* 'tdat' */
+#define OSOS_LIST_MAGIC 0x706c7374u       /* 'plst' */
+/* 64-bit iTunesDB track persistent ID (mhit +0x70) in the song record. */
+#define OSOS_RECORD_PERSISTENT_ID 0x110
+/* List view model shared by media lists: highlighted row is vtable +0x168. */
+#define OSOS_LIST_VIEW_MODEL 0x0817dde4
+#define OSOS_LIST_VIEW_HIGHLIGHTED 0x168
+/* Media-list controller: list row -> data row (vtable +0x130). */
+#define OSOS_MEDIA_LIST_MAP_ROW 0x130

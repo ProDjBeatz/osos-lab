@@ -70,6 +70,7 @@ def build_recipe(
                 "dark_mode.ui",
                 "queue_selection.ui",
                 "playlist_rename.ui",
+                "playlist_add.ui",
             )
         ],
         directory,

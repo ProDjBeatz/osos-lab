@@ -149,3 +149,7 @@ PATCH_POINTER(OSOS_SEARCH_MENU_ON_KEYBOARD_SLOT, OSOS_SEARCH_MENU_ON_KEYBOARD,
               cfw_search_menu_on_keyboard);
 PATCH_POINTER(OSOS_SEARCH_TRANSITION_MENU_ON_KEYBOARD_SLOT,
               OSOS_SEARCH_MENU_ON_KEYBOARD, cfw_search_menu_on_keyboard);
+
+/* Add to Playlist: re-apply saved additions whenever the library is loaded. */
+PATCH_CALL(OSOS_DATABASE_LOAD_BOOT_CALL, OSOS_DATABASE_LOAD, cfw_database_load);
+PATCH_CALL(OSOS_DATABASE_LOAD_RELOAD_CALL, OSOS_DATABASE_LOAD, cfw_database_load);
