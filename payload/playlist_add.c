@@ -537,6 +537,27 @@ void cfw_playlist_add_menu(struct osos_context_menu *menu)
                                  1);
 }
 
+
+/* Temporary diagnostics for the highlight after Remove from Playlist. */
+static struct {
+    uint32_t magic, count;
+    uint32_t words[510];
+} debug;
+static const struct osos_path debug_path = {0, "iPod_Control\\Device\\CFWDebugRemove"};
+
+static void debug_put(uint32_t value)
+{
+    if (debug.count < sizeof(debug.words) / 4)
+        debug.words[debug.count++] = value;
+}
+
+static void debug_object(const void *object, unsigned from, unsigned to)
+{
+    debug_put((uint32_t)(uintptr_t)object);
+    for (unsigned i = from; i < to; i += 4)
+        debug_put(object ? *word_pair(object, i) : 0);
+}
+
 void cfw_playlist_remove(void *controller, struct osos_media_item *item)
 {
     struct osos_media_record *record =
@@ -550,6 +571,15 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     struct osos_media_entry *entry = entry_for_record(list, record);
     if (!entry)
         return;
+    typedef void *(*get_view0)(void);
+    typedef int (*highlighted0)(void *);
+    void *view0 = ((get_view0)OSOS_LIST_VIEW_MODEL)();
+    debug.magic = 0x47424443;
+    debug.count = 0;
+    debug_object(view0, 0, 0x40);
+    debug_object(view0 ? *(void **)view0 : NULL, 0x100, 0x200);
+    debug_object(controller, 0x80, 0x120);
+    debug_put(view0 ? (uint32_t)((highlighted0)osos_method(view0, OSOS_LIST_VIEW_HIGHLIGHTED))(view0) : 0xffff);
     delete_entry(list, entry);
     forget(list, record);
     /* Blink the row the way the iPod does for On-The-Go adds and removals. */
@@ -574,6 +604,12 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
     if (playlists)
         ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
+    view0 = ((get_view0)OSOS_LIST_VIEW_MODEL)();
+    debug_put(0x41465445); /* AFTE */
+    debug_object(view0, 0, 0x40);
+    debug_object(controller, 0x80, 0x120);
+    debug_put(view0 ? (uint32_t)((highlighted0)osos_method(view0, OSOS_LIST_VIEW_HIGHLIGHTED))(view0) : 0xffff);
+    cfw_preferences_write(&debug_path, &debug, sizeof(debug));
 }
 
 /* Cover Flow album whose backside the song came from; -1 for other screens. */
