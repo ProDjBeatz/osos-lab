@@ -18,6 +18,11 @@
   <screen-event screen="CFW_AddToPlaylist_Screen"
                 event="controller.CFW_AddedToPlaylist"
                 action="navigator.PopTopScreen"/>
+  <!-- Menu backs out without adding (and puts Cover Flow's album back). -->
+  <screen-event screen="CFW_AddToPlaylist_Screen"
+                event="button.menu.up"
+                handler="CFW_AddToPlaylistCancel"
+                action="navigator.PopTopScreen"/>
   <!-- Hold Center on a song, choose Add to Playlist: remember it, open the chooser. -->
   <screen-event screen="MediaLists_Songs_Screen"
                 event="contextualMenu.CFW_AddToPlaylist"

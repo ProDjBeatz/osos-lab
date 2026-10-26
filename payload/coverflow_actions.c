@@ -20,13 +20,18 @@ struct menu_storage {
     uint32_t words[16];
 };
 
+static int shown_album(void *controller)
+{
+    uint8_t *flow = *(uint8_t **)((uint8_t *)controller + OSOS_COVERFLOW_FLOW);
+    return flow ? *(int *)(flow + OSOS_COVERFLOW_FLOW_ALBUM) : -1;
+}
+
 static int highlighted_song(void *controller, struct osos_media_item *item)
 {
     typedef void *(*get)(void);
     typedef int (*highlighted)(void *);
     typedef void (*item_at)(struct osos_media_item *, void *, int);
-    uint8_t *flow = *(uint8_t **)((uint8_t *)controller + OSOS_COVERFLOW_FLOW);
-    if (!flow || *(int *)(flow + OSOS_COVERFLOW_FLOW_ALBUM) < 0)
+    if (shown_album(controller) < 0)
         return 0;
     void *view = ((get)OSOS_LIST_VIEW_MODEL)();
     int row = view ? ((highlighted)osos_method(view, OSOS_LIST_VIEW_HIGHLIGHTED))(view) : -1;
@@ -73,6 +78,7 @@ static int song_action(void *controller, const char *action, uint32_t argument)
     } else if (add) {
         /* The screen event then opens the playlist chooser. */
         cfw_playlist_add_select(found ? &item : NULL);
+        cfw_playlist_add_from_coverflow(shown_album(controller));
     } else if (found) {
         struct osos_player *player = osos_player_get();
         osos_player_lock(player);

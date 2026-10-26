@@ -7,6 +7,8 @@
 void cfw_playlist_add_menu(struct osos_context_menu *menu);
 /* Song chosen from a hold menu (NULL clears it). */
 void cfw_playlist_add_select(struct osos_media_item *item);
+/* Cover Flow: the song selected last came from this album's back side. */
+void cfw_playlist_add_from_coverflow(int album);
 /* Song list inside a playlist: remove the item's song from that playlist. */
 void cfw_playlist_remove(void *controller, struct osos_media_item *item);
 /* Playlist chooser: returns 1 when action was handled or support-queried. */

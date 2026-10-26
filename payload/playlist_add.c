@@ -410,9 +410,32 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     forget(list, record);
 }
 
+/* Cover Flow album whose backside the song came from; -1 for other screens. */
+static int coverflow_album = -1;
+
 void cfw_playlist_add_select(struct osos_media_item *item)
 {
     pending = item ? osos_media_item_entry(item) : NULL;
+    coverflow_album = -1;
+}
+
+void cfw_playlist_add_from_coverflow(int album)
+{
+    coverflow_album = album;
+}
+
+/* The Playlists chooser reconfigures the library browser that Cover Flow's back
+   side lists from; point it at the album again before returning to it, as the
+   flip to the back side does (Cover Flow model vtable +0xdc). */
+static void restore_coverflow(void)
+{
+    typedef void *(*get)(void);
+    typedef void (*show_album)(void *, int);
+    int album = coverflow_album;
+    coverflow_album = -1;
+    void *model = album >= 0 ? ((get)OSOS_COVERFLOW_MODEL_GET)() : NULL;
+    if (model)
+        ((show_album)osos_method(model, OSOS_COVERFLOW_MODEL_SHOW_ALBUM))(model, album);
 }
 
 static void emit(void *controller, const char *event)
@@ -451,6 +474,14 @@ static struct osos_media_list *chosen_list(void *controller)
 
 int cfw_playlist_add_action(void *controller, const char *action, uint32_t argument)
 {
+    if (cfw_string_equal(action, "CFW_AddToPlaylistCancel")) {
+        /* playlist_add.ui closes the chooser after this. */
+        if (argument != OSOS_ACTION_SUPPORT_QUERY) {
+            pending = NULL;
+            restore_coverflow();
+        }
+        return 1;
+    }
     if (!cfw_string_equal(action, "CFW_AddToPlaylistChosen"))
         return 0;
     if (argument == OSOS_ACTION_SUPPORT_QUERY)
@@ -470,6 +501,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
                 remember(list, entry);
         }
     }
+    restore_coverflow();
     /* playlist_add.ui binds controller.CFW_AddedToPlaylist to PopTopScreen. */
     emit(controller, "CFW_AddedToPlaylist");
     return 1;

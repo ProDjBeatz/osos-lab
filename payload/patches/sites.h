@@ -174,6 +174,8 @@
    the model's play-song method (0x08274c20) does. */
 #define OSOS_COVERFLOW_MODEL_GET 0x08274e84
 #define OSOS_COVERFLOW_MODEL_BROWSER 0x158
+/* Cover Flow model: list an album on the back side (-1 clears), vtable +0xdc. */
+#define OSOS_COVERFLOW_MODEL_SHOW_ALBUM 0xdc
 #define OSOS_BROWSER_ITEM_AT 0x22c
 #define OSOS_MEDIA_ITEM_DESTROY 0x08266da0
 /* Hold menus: construct, show from a controller, destroy. */
