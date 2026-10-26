@@ -137,5 +137,7 @@
 /* List view model shared by media lists: highlighted row is vtable +0x168. */
 #define OSOS_LIST_VIEW_MODEL 0x0817dde4
 #define OSOS_LIST_VIEW_HIGHLIGHTED 0x168
+/* List byte that makes the cached song counts (+0x61c, +0x620) recount. */
+#define OSOS_LIST_COUNTS_STALE 0x618
 /* Media-list controller: list row -> data row (vtable +0x130). */
 #define OSOS_MEDIA_LIST_MAP_ROW 0x130
