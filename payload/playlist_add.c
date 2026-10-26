@@ -57,6 +57,12 @@ struct pair_file {
 
 static struct pair_file adds, removes;
 
+/* Saved pairs whose playlist was not there yet at the last load: playlists made
+   on the iPod are loaded later (they are not in iTunesDB), so these are applied
+   when the playlist is first seen (cfw_playlist_seen). */
+static uint8_t waiting[2][PAIRS_MAX];
+static uint32_t waiting_count;
+
 static const struct osos_path adds_path = {0, "iPod_Control\\Device\\CFWAdds"};
 static const struct osos_path removes_path = {0, "iPod_Control\\Device\\CFWRemoves"};
 
@@ -217,6 +223,11 @@ static int pair_drop(struct pair_file *file, const uint32_t *list, uint32_t name
     if (i < 0)
         return 0;
     /* Field-wise: a struct copy would need memcpy, which the payload lacks. */
+    int removal = file == &removes;
+    if (waiting[removal][i])
+        waiting_count--;
+    waiting[removal][i] = waiting[removal][file->count - 1];
+    waiting[removal][file->count - 1] = 0;
     struct saved_pair *pair = &file->entries[i], *last = &file->entries[--file->count];
     pair->list[0] = last->list[0];
     pair->list[1] = last->list[1];
@@ -377,6 +388,21 @@ static struct osos_media_list *saved_list(struct osos_media_list *first,
     return NULL;
 }
 
+
+static void apply_pair(struct osos_media_list *first, struct osos_media_list *list,
+                       int removal, const struct saved_pair *pair)
+{
+    if (removal) {
+        struct osos_media_entry *entry = entry_for_track(list, pair->track);
+        if (entry)
+            delete_entry(list, entry);
+    } else {
+        struct osos_media_entry *entry = find_track(first, pair->track);
+        if (entry)
+            append(NULL, list, entry);
+    }
+}
+
 static void apply_saved(void)
 {
     /* Load first, so later changes keep the saved lists even if nothing applies. */
@@ -385,21 +411,50 @@ static void apply_saved(void)
     struct osos_media_list *first = first_list();
     if (!first)
         return;
-    /* The library is still loading: nothing plays yet, so no player is needed. */
-    for (uint32_t i = 0; i < removes.count; i++) {
-        struct osos_media_list *list = saved_list(first, &removes.entries[i]);
-        struct osos_media_entry *entry =
-            list ? entry_for_track(list, removes.entries[i].track) : NULL;
-        if (entry)
-            delete_entry(list, entry);
+    /* The library is still loading: nothing plays yet, so no player is needed.
+       Removals first, then additions. */
+    waiting_count = 0;
+    for (int removal = 1; removal >= 0; removal--) {
+        struct pair_file *file = removal ? &removes : &adds;
+        for (uint32_t i = 0; i < file->count; i++) {
+            struct osos_media_list *list = saved_list(first, &file->entries[i]);
+            waiting[removal][i] = !list && file->entries[i].list_name;
+            waiting_count += waiting[removal][i];
+            if (list)
+                apply_pair(first, list, removal, &file->entries[i]);
+        }
     }
-    for (uint32_t i = 0; i < adds.count; i++) {
-        struct osos_media_list *list = saved_list(first, &adds.entries[i]);
-        struct osos_media_entry *entry =
-            list ? find_track(first, adds.entries[i].track) : NULL;
-        if (entry)
-            append(NULL, list, entry);
+}
+
+/* Called from the playlist name getter, i.e. whenever a playlist is listed. */
+void cfw_playlist_seen(void *seen)
+{
+    static int busy;
+    struct osos_media_list *list = seen;
+    if (!waiting_count || busy || !is_list(list) || !osos_list_root(list))
+        return;
+    struct osos_media_list *first = first_list();
+    if (!first)
+        return;
+    struct osos_player *player = osos_player_get();
+    osos_player_lock(player);
+    int playing = player->playback.list == list;
+    osos_player_unlock(player);
+    if (playing)
+        return;
+    busy = 1;
+    uint32_t name = own_name_hash(list);
+    for (int removal = 1; removal >= 0 && name; removal--) {
+        struct pair_file *file = removal ? &removes : &adds;
+        for (uint32_t i = 0; i < file->count; i++) {
+            if (!waiting[removal][i] || file->entries[i].list_name != name)
+                continue;
+            waiting[removal][i] = 0;
+            waiting_count--;
+            apply_pair(first, list, removal, &file->entries[i]);
+        }
     }
+    busy = 0;
 }
 
 

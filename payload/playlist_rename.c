@@ -26,6 +26,7 @@
 #include "patches/sites.h"
 #include "playlist_rename.h"
 #include "playlist_rename_ui.h"
+#include "playlist_add.h"
 
 #define STR_TYPE 0x53747220u /* 'Str ' */
 #define NAME_MAX 255
@@ -233,6 +234,8 @@ static void remember(void *list, const struct native_name *renamed)
 PATCH_ARM int cfw_playlist_get_name(void *list, struct native_name *name)
 {
     int result = cfw_playlist_get_name_original(list, name);
+    if (list)
+        cfw_playlist_seen(list);
     struct saved_name *entry = list && name ? saved_for(list, &name->length) : NULL;
     if (entry)
         copy_name(&name->length, entry->renamed, SAVED_UNITS);

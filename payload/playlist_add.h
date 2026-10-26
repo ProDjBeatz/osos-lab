@@ -14,4 +14,7 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item);
 /* Playlist chooser: returns 1 when action was handled or support-queried. */
 int cfw_playlist_add_action(void *controller, const char *action, uint32_t argument);
 
+/* A playlist is being listed: apply saved changes still waiting for it. */
+void cfw_playlist_seen(void *list);
+
 #endif
