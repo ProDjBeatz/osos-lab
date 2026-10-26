@@ -77,7 +77,10 @@ static void *playlist_at(int row)
 {
     typedef void *(*instance)(void);
     typedef void *(*row_item)(struct playlist_ref *, void *, int);
-    struct playlist_ref ref = {0};
+    /* Field-wise init: the payload links without libc, so no {0} (memset). */
+    struct playlist_ref ref;
+    ref.vtable = NULL;
+    ref.list = NULL;
     if (row < 0)
         return NULL;
     ((row_item)OSOS_PLAYLISTS_ROW_ITEM)(&ref, ((instance)OSOS_PLAYLISTS_GET)(), row);
