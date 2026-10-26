@@ -30,10 +30,21 @@
 
 #define ADDS_MAGIC 0x41574643u    /* "CFWA" */
 #define REMOVES_MAGIC 0x52574643u /* "CFWR" */
-#define PAIRS_VERSION 1
+#define PAIRS_VERSION 2
+#define PAIRS_VERSION_ID_ONLY 1
 #define PAIRS_MAX 256
 
+/* list_name: hash of the playlist's own (pre-rename) name, for playlists made on
+   the iPod, whose persistent ID does not last from one load to the next. */
 struct saved_pair {
+    uint32_t list[2];
+    uint32_t track[2];
+    uint32_t list_name;
+    uint32_t reserved;
+};
+
+/* Version 1 entries: IDs only. */
+struct saved_pair_id_only {
     uint32_t list[2];
     uint32_t track[2];
 };
@@ -131,43 +142,78 @@ static const struct osos_path *pair_path(struct pair_file *file)
     return file == &adds ? &adds_path : &removes_path;
 }
 
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
 static void pair_load(struct pair_file *file, uint32_t magic)
 {
-    if (!cfw_preferences_read(pair_path(file), file, sizeof(*file)) ||
-        file->magic != magic || file->version != PAIRS_VERSION ||
+    if (cfw_preferences_read(pair_path(file), file, sizeof(*file)) &&
+        file->magic == magic && file->version == PAIRS_VERSION &&
+        file->count <= PAIRS_MAX) {
+        file->magic = magic;
+        return;
+    }
+    /* Version 1: read into the same storage, then widen from the last entry
+       down so each one is read before anything overwrites it. */
+    struct saved_pair_id_only *old = (struct saved_pair_id_only *)file->entries;
+    if (!cfw_preferences_read(pair_path(file), file, 12 + PAIRS_MAX * sizeof(*old)) ||
+        file->magic != magic || file->version != PAIRS_VERSION_ID_ONLY ||
         file->count > PAIRS_MAX)
         file->count = 0;
+    for (uint32_t i = file->count; i-- > 0;) {
+        uint32_t l0 = old[i].list[0], l1 = old[i].list[1];
+        uint32_t t0 = old[i].track[0], t1 = old[i].track[1];
+        struct saved_pair *pair = &file->entries[i];
+        pair->list[0] = l0;
+        pair->list[1] = l1;
+        pair->track[0] = t0;
+        pair->track[1] = t1;
+        pair->list_name = 0;
+        pair->reserved = 0;
+    }
     file->magic = magic;
     file->version = PAIRS_VERSION;
 }
 
-static int pair_index(struct pair_file *file, const uint32_t *list, const uint32_t *track)
+/* A saved pair's playlist: the same persistent ID, or the same own name (an
+   iPod-made playlist's ID changes from one load to the next). */
+static int same_list(const struct saved_pair *pair, const uint32_t *list, uint32_t name)
+{
+    if ((list[0] || list[1]) && pair->list[0] == list[0] && pair->list[1] == list[1])
+        return 1;
+    return pair->list_name && pair->list_name == name;
+}
+
+static int pair_index(struct pair_file *file, const uint32_t *list, uint32_t name,
+                      const uint32_t *track)
 {
     for (uint32_t i = 0; i < file->count; i++) {
         struct saved_pair *pair = &file->entries[i];
-        if (pair->list[0] == list[0] && pair->list[1] == list[1] &&
-            pair->track[0] == track[0] && pair->track[1] == track[1])
+        if (same_list(pair, list, name) && pair->track[0] == track[0] &&
+            pair->track[1] == track[1])
             return (int)i;
     }
     return -1;
 }
 
-static void pair_add(struct pair_file *file, const uint32_t *list, const uint32_t *track)
+static void pair_add(struct pair_file *file, const uint32_t *list, uint32_t name,
+                     const uint32_t *track)
 {
-    if (pair_index(file, list, track) >= 0 || file->count == PAIRS_MAX)
+    if (pair_index(file, list, name, track) >= 0 || file->count == PAIRS_MAX)
         return;
     struct saved_pair *pair = &file->entries[file->count++];
     pair->list[0] = list[0];
     pair->list[1] = list[1];
     pair->track[0] = track[0];
     pair->track[1] = track[1];
+    pair->list_name = name;
+    pair->reserved = 0;
     cfw_preferences_write(pair_path(file), file, sizeof(*file));
 }
 
 /* 1 when the pair was saved (and is now dropped). */
-static int pair_drop(struct pair_file *file, const uint32_t *list, const uint32_t *track)
+static int pair_drop(struct pair_file *file, const uint32_t *list, uint32_t name,
+                     const uint32_t *track)
 {
-    int i = pair_index(file, list, track);
+    int i = pair_index(file, list, name, track);
     if (i < 0)
         return 0;
     /* Field-wise: a struct copy would need memcpy, which the payload lacks. */
@@ -176,36 +222,52 @@ static int pair_drop(struct pair_file *file, const uint32_t *list, const uint32_
     pair->list[1] = last->list[1];
     pair->track[0] = last->track[0];
     pair->track[1] = last->track[1];
+    pair->list_name = last->list_name;
+    pair->reserved = last->reserved;
     cfw_preferences_write(pair_path(file), file, sizeof(*file));
     return 1;
 }
 
+/* FNV-1a over the playlist's own (pre-rename) name; 0 when it has none. */
+static uint32_t own_name_hash(struct osos_media_list *list)
+{
+    uint16_t name[64];
+    cfw_playlist_own_name(list, name, 63);
+    uint32_t hash = 2166136261u;
+    for (uint16_t i = 1; i <= name[0]; i++)
+        hash = (hash ^ name[i]) * 16777619u;
+    return name[0] && hash ? hash : 0;
+}
+
 static int saved_ids(struct osos_media_list *list, struct osos_media_record *record,
-                     const uint32_t **playlist, const uint32_t **track)
+                     const uint32_t **playlist, uint32_t *name, const uint32_t **track)
 {
     *playlist = list_id(list);
+    *name = own_name_hash(list);
     *track = word_pair(record, OSOS_RECORD_PERSISTENT_ID);
-    return ((*playlist)[0] || (*playlist)[1]) && ((*track)[0] || (*track)[1]);
+    return ((*playlist)[0] || (*playlist)[1] || *name) && ((*track)[0] || (*track)[1]);
 }
 
 /* Added on the iPod: undo a saved removal of a synced song, else save the add. */
 static void remember(struct osos_media_list *list, struct osos_media_entry *entry)
 {
     const uint32_t *playlist, *track;
-    if (!saved_ids(list, entry->song.record, &playlist, &track))
+    uint32_t name;
+    if (!saved_ids(list, entry->song.record, &playlist, &name, &track))
         return;
-    if (!pair_drop(&removes, playlist, track))
-        pair_add(&adds, playlist, track);
+    if (!pair_drop(&removes, playlist, name, track))
+        pair_add(&adds, playlist, name, track);
 }
 
 /* Removed on the iPod: forget a saved add, else save the removal. */
 static void forget(struct osos_media_list *list, struct osos_media_record *record)
 {
     const uint32_t *playlist, *track;
-    if (!saved_ids(list, record, &playlist, &track))
+    uint32_t name;
+    if (!saved_ids(list, record, &playlist, &name, &track))
         return;
-    if (!pair_drop(&adds, playlist, track))
-        pair_add(&removes, playlist, track);
+    if (!pair_drop(&adds, playlist, name, track))
+        pair_add(&removes, playlist, name, track);
 }
 
 static struct osos_media_entry *entry_for_record(struct osos_media_list *list,
@@ -299,6 +361,22 @@ static struct osos_media_list *first_list(void)
     return *(struct osos_media_list **)(tracks + OSOS_TRACK_DATA_FIRST_LIST);
 }
 
+/* The playlist a saved pair belongs to in this load. */
+static struct osos_media_list *saved_list(struct osos_media_list *first,
+                                          const struct saved_pair *pair)
+{
+    struct osos_media_list *found =
+        pair->list[0] || pair->list[1] ? find_list(first, pair->list) : NULL;
+    if (found || !pair->list_name)
+        return found;
+    unsigned lists = 0;
+    for (struct osos_media_list *list = first; is_list(list) && lists < 4096;
+         list = next_list(list), lists++)
+        if (own_name_hash(list) == pair->list_name)
+            return list;
+    return NULL;
+}
+
 static void apply_saved(void)
 {
     /* Load first, so later changes keep the saved lists even if nothing applies. */
@@ -309,14 +387,14 @@ static void apply_saved(void)
         return;
     /* The library is still loading: nothing plays yet, so no player is needed. */
     for (uint32_t i = 0; i < removes.count; i++) {
-        struct osos_media_list *list = find_list(first, removes.entries[i].list);
+        struct osos_media_list *list = saved_list(first, &removes.entries[i]);
         struct osos_media_entry *entry =
             list ? entry_for_track(list, removes.entries[i].track) : NULL;
         if (entry)
             delete_entry(list, entry);
     }
     for (uint32_t i = 0; i < adds.count; i++) {
-        struct osos_media_list *list = find_list(first, adds.entries[i].list);
+        struct osos_media_list *list = saved_list(first, &adds.entries[i]);
         struct osos_media_entry *entry =
             list ? find_track(first, adds.entries[i].track) : NULL;
         if (entry)
@@ -338,8 +416,9 @@ PATCH_ARM int cfw_database_load(void *media_database)
     int result = ((load)OSOS_DATABASE_LOAD)(media_database);
     database = media_database;
     if (database) {
-        apply_saved();
+        /* Renames first: iPod-made playlists are found by their own names. */
         cfw_playlist_names_reconcile(list_exists);
+        apply_saved();
     }
     return result;
 }

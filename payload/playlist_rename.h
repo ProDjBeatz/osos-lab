@@ -13,4 +13,7 @@ void cfw_playlist_names_load(void);
 /* After each library load: playlists whose saved ID is gone match by name. */
 void cfw_playlist_names_reconcile(int (*exists)(const uint32_t *id));
 
+/* A playlist's own name before any rename here (length-prefixed UTF-16). */
+void cfw_playlist_own_name(void *list, uint16_t *name, uint16_t limit);
+
 #endif

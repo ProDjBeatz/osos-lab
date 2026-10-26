@@ -177,6 +177,17 @@ void cfw_playlist_names_reconcile(int (*exists)(const uint32_t *id))
     }
 }
 
+/* The playlist's own name, before any rename on the iPod (length-prefixed). */
+void cfw_playlist_own_name(void *list, uint16_t *name, uint16_t limit)
+{
+    struct native_name current;
+    current.length = 0;
+    cfw_playlist_get_name_original(list, &current);
+    struct saved_name *entry = saved_for(list, &current.length);
+    copy_name(name, entry && entry->original[0] ? entry->original : &current.length,
+              limit);
+}
+
 /* One entry per playlist, overwritten on every rename; the whole fixed-size file
    is rewritten in place. Renaming back to the original name drops the entry. */
 static void remember(void *list, const struct native_name *renamed)
