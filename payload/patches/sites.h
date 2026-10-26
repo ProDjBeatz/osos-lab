@@ -95,6 +95,8 @@
 #define OSOS_SEARCH_MODEL_LOOKUP 0x081c7d44
 #define OSOS_SEARCH_MODEL_ID 0x7680
 #define OSOS_SEARCH_QUERY_ID 0x7684
+/* Search model byte set while the keyboard should be restored on reopen. */
+#define OSOS_SEARCH_MODEL_KEYBOARD_FLAG 0x18
 #define OSOS_MODEL_RESOURCE_GET 0x08268b64
 #define OSOS_MODEL_RESOURCE_SET 0x08268c28
 #define OSOS_SEARCH_SET_QUERY_CALL 0x0812614c

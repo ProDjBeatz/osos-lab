@@ -161,8 +161,13 @@ int cfw_playlist_rename_action(void *controller, const char *action,
         rename_pending = rename_list != NULL;
         /* Start from an empty name instead of the last search. */
         void *model = rename_list ? search_model() : NULL;
-        if (model)
+        if (model) {
             set_query(model, "", 0);
+            /* TSearchCntlr (vtable +0xec) restores Search_Main_Screen_WithKeyboard
+               when this "keyboard was showing" flag is set; the rename screen has
+               only its own layout, so switching would abort. */
+            ((volatile uint8_t *)model)[OSOS_SEARCH_MODEL_KEYBOARD_FLAG] = 0;
+        }
     }
     /* The screen event then pushes Search with its keyboard. */
     return 1;
