@@ -11,9 +11,7 @@ PATCH_JUMP(OSOS_RESOURCE_SERVICE_GET, 0xe92d40f8, 0xe1a05001,
 PATCH_JUMP(OSOS_BITMAP_CACHE_LOAD, 0xe92d4070, 0xe1a04000,
            cfw_bitmap_cache_load);
 PATCH_CALL(OSOS_GRAPHICS_FILL_RECT_CALL, OSOS_SURFACE_FILL_RECT, cfw_dark_mode_fill);
-/* TextView colour goes through playlist_rename.S (passes the drawn text) and then
-   cfw_dark_mode_text_color. */
-PATCH_CALL(OSOS_TEXT_DRAW_COLOR_CALL, OSOS_GRAPHICS_SET_COLOR, cfw_text_draw_color_stub);
+PATCH_CALL(OSOS_TEXT_DRAW_COLOR_CALL, OSOS_GRAPHICS_SET_COLOR, cfw_dark_mode_text_color);
 PATCH_CALL(OSOS_MARQUEE_DRAW_COLOR_CALL, OSOS_GRAPHICS_SET_COLOR,
            cfw_dark_mode_text_color);
 PATCH_CALL(OSOS_COVER_FLOW_CLEAR_COLOR_CALL, OSOS_GLES_CLEAR_COLOR_X,

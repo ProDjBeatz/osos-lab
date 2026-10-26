@@ -132,28 +132,6 @@ static int rename_to(void *list, const char *text)
     return ((set_name)OSOS_PLAYLIST_SET_NAME)(list, &name);
 }
 
-void cfw_dark_mode_text_color(void *context, const unsigned char *color);
-
-static int same_text(const char *a, const char *b)
-{
-    while (*a && *a == *b)
-        a++, b++;
-    return *a == *b;
-}
-
-PATCH_ARM void cfw_text_draw_color(void *context, const unsigned char *color,
-                                   const char *text)
-{
-    static const unsigned char black[4] = {0, 0, 0, 0xff};
-    void *model = rename_controller && text && *text ? search_model() : NULL;
-    const char *typed_now = model ? get_query(model) : NULL;
-    if (typed_now && same_text(text, typed_now)) {
-        osos_graphics_set_color(context, black);
-        return;
-    }
-    cfw_dark_mode_text_color(context, color);
-}
-
 /* TSilverMediaListCntlr_Playlists vtable +0x148: remember the held row. */
 PATCH_ARM int cfw_playlists_menu(void *controller, int row)
 {
