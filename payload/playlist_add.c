@@ -432,8 +432,14 @@ static void show_coverflow_album(int album)
     typedef void *(*get)(void);
     typedef void (*show_album)(void *, int);
     void *model = album >= 0 ? ((get)OSOS_COVERFLOW_MODEL_GET)() : NULL;
-    if (model)
-        ((show_album)osos_method(model, OSOS_COVERFLOW_MODEL_SHOW_ALBUM))(model, album);
+    if (!model)
+        return;
+    show_album show = (show_album)osos_method(model, OSOS_COVERFLOW_MODEL_SHOW_ALBUM);
+    /* Clear first, as flipping back to the front does: that resets the browser to
+       the album list, so the album index means the same album again even after
+       an add's library refresh left the browser somewhere else. */
+    show(model, -1);
+    show(model, album);
 }
 
 /* Album to list again once Cover Flow is shown after the chooser closes: an add
