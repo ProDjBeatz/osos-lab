@@ -86,3 +86,25 @@
 /* Same builder via TSilverCntlrTransitionAddon<..._Playlists>. */
 #define OSOS_PLAYLISTS_TRANSITION_MENU_SLOT 0x089a535c
 #define OSOS_PLAYLISTS_CANCEL_APPEND_CALL 0x08229698
+/* Playlists library: row -> playlist reference {vtable, list, ...}. */
+#define OSOS_PLAYLISTS_GET 0x08169178
+#define OSOS_PLAYLISTS_ROW_ITEM 0x081691a8
+/* Set a playlist's name from a length-prefixed UTF-16 string. */
+#define OSOS_PLAYLIST_SET_NAME 0x0805c3d8
+/* Search keyboard text: 'Str ' 0x7684 in the search model (lookup 0x7680). */
+#define OSOS_SEARCH_MODEL_LOOKUP 0x081c7d44
+#define OSOS_SEARCH_MODEL_ID 0x7680
+#define OSOS_SEARCH_QUERY_ID 0x7684
+#define OSOS_MODEL_RESOURCE_GET 0x08268b64
+#define OSOS_MODEL_RESOURCE_SET 0x08268c28
+#define OSOS_SEARCH_SET_QUERY_CALL 0x0812614c
+/* TSearchCntlr construction and HandleMenuOnKeyboard (vtable +0x150). */
+#define OSOS_SEARCH_CONSTRUCT 0x08126964
+#define OSOS_SEARCH_CONSTRUCT_CALL 0x081261c0
+#define OSOS_SEARCH_MENU_ON_KEYBOARD 0x08125dc8
+#define OSOS_SEARCH_MENU_ON_KEYBOARD_SLOT 0x0898c034
+#define OSOS_SEARCH_TRANSITION_MENU_ON_KEYBOARD_SLOT 0x0899d3e8
+/* Controller navigation event (vtable +0x11c) and its CppString argument. */
+#define OSOS_CONTROLLER_EMIT_EVENT 0x11c
+#define OSOS_CPP_STRING_INIT 0x083cf82c
+#define OSOS_CPP_STRING_DESTROY 0x083cf7d4

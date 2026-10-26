@@ -224,10 +224,11 @@ class Parser:
         )
 
     def parse_screen_event(self, node):
-        attributes(node, "screen event handler", "action arguments")
-        if not node.attrib["event"] or not node.attrib["handler"]:
-            raise ValueError("Screen events require an event and handler")
+        attributes(node, "screen event", "handler action arguments")
         action = node.get("action", "")
+        # Native events may run only a navigator action (empty handler).
+        if not node.attrib["event"] or not (node.get("handler") or action):
+            raise ValueError("Screen events require an event and handler or action")
         arguments = tuple(
             argument.strip()
             for argument in node.get("arguments", "").split(",")
@@ -238,7 +239,7 @@ class Parser:
         return ScreenEvent(
             resource_reference(node.attrib["screen"]),
             node.attrib["event"],
-            node.attrib["handler"],
+            node.get("handler", ""),
             action,
             arguments,
         )

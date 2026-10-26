@@ -9,4 +9,8 @@
                 handler="CFW_RenamePlaylist"
                 action="navigator.PushScreen"
                 arguments="Search_Main_Screen, Search_Main_Screen_WithKeyboardNow"/>
+  <!-- Menu while renaming saves the name and returns to Playlists. -->
+  <screen-event screen="Search_Main_Screen"
+                event="controller.CFW_RenameDone"
+                action="navigator.PopTopScreen"/>
 </ui>

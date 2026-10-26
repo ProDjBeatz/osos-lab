@@ -224,6 +224,14 @@ class UiTests(unittest.TestCase):
                 '<ui><screen-event screen="10" event="e" handler="h" '
                 'arguments="x"/></ui>'
             )
+        pop = parser.parse(
+            '<ui><screen-event screen="10" event="controller.Done" '
+            'action="navigator.PopTopScreen"/></ui>'
+        ).events[0]
+        self.assertEqual((pop.handler, pop.action, pop.arguments),
+                         ("", "navigator.PopTopScreen", ()))
+        with self.assertRaises(ValueError):
+            parser.parse('<ui><screen-event screen="10" event="e"/></ui>')
 
     def test_screen_events_extend_each_layout_without_replacing_stock_events(self):
         document = parser.parse(
