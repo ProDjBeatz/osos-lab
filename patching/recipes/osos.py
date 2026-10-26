@@ -71,6 +71,7 @@ def build_recipe(
                 "queue_selection.ui",
                 "playlist_rename.ui",
                 "playlist_add.ui",
+                "coverflow_actions.ui",
             )
         ],
         directory,

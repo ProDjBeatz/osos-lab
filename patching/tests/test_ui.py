@@ -258,6 +258,21 @@ class UiTests(unittest.TestCase):
             self.assertIn(b"test.other1", data.data)
             self.assertEqual(resources.original["SEVT", layout], stock)
 
+    def test_screen_event_can_target_one_layout(self):
+        resources = Resources([])
+        resources.original = {
+            ("SLst", 10): pack_blocks(
+                [(0, struct.pack("<I", 20)), (0, struct.pack("<I", 21))]
+            ),
+            ("SEVT", 20): struct.pack("<I", 0),
+            ("SEVT", 21): struct.pack("<I", 0),
+        }
+        resources.bind_screen_event(ScreenEvent(10, "test.hold", "Hold", layout=21))
+        self.assertNotIn(("SEVT", 20), resources.added)
+        self.assertEqual(resources.added["SEVT", 21].word(0), 1)
+        with self.assertRaises(ValueError):
+            resources.bind_screen_event(ScreenEvent(10, "test.hold", "Hold", layout=22))
+
     def test_storage_slots_survive_menu_reordering(self):
         first = selector("FIRST", 0)
         second = selector("SECOND", 1, 1)

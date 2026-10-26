@@ -213,8 +213,17 @@ class Resources:
             )
         else:
             encoded += struct.pack("<I", 0)
-        for _, layout in blocks(self.current("SLst", self.native(binding.screen))):
-            self.extend_events("SEVT", word(layout, 0), [encoded])
+        layouts = [
+            word(layout, 0)
+            for _, layout in blocks(self.current("SLst", self.native(binding.screen)))
+        ]
+        if binding.layout != "":
+            only = self.native(binding.layout)
+            if only not in layouts:
+                raise ValueError("Screen event layout is not a layout of its screen")
+            layouts = [only]
+        for layout in layouts:
+            self.extend_events("SEVT", layout, [encoded])
 
     def source(self, text, string_id=None):
         if string_id is None:

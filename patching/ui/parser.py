@@ -237,7 +237,7 @@ class Parser:
         )
 
     def parse_screen_event(self, node):
-        attributes(node, "screen event", "handler action arguments")
+        attributes(node, "screen event", "handler action arguments layout")
         action = node.get("action", "")
         # Native events may run only a navigator action (empty handler).
         if not node.attrib["event"] or not (node.get("handler") or action):
@@ -255,6 +255,7 @@ class Parser:
             node.get("handler", ""),
             action,
             arguments,
+            resource_reference(node.attrib["layout"]) if "layout" in node.attrib else "",
         )
 
     def apply_settings_entry(self):

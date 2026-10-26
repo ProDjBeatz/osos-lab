@@ -31,6 +31,8 @@ class ScreenEvent:
     # Optional native follow-up, e.g. navigator.PushScreen with its arguments.
     action: str = ""
     arguments: tuple[str, ...] = ()
+    # Optional: bind only on this layout of the screen instead of all of them.
+    layout: str | int = ""
 
 
 @dataclass

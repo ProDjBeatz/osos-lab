@@ -158,3 +158,8 @@ PATCH_POINTER(OSOS_NESTED_PLAYLISTS_MENU_SLOT, OSOS_NESTED_PLAYLISTS_BUILD_MENU,
               cfw_nested_playlists_menu);
 PATCH_POINTER(OSOS_NESTED_PLAYLISTS_TRANSITION_MENU_SLOT, OSOS_NESTED_PLAYLISTS_BUILD_MENU,
               cfw_nested_playlists_menu);
+
+/* Cover Flow: hold Center on a song on the back of an album. */
+PATCH_POINTER(OSOS_COVERFLOW_ACTION_SLOT, OSOS_COVERFLOW_ACTION, cfw_coverflow_action);
+PATCH_POINTER(OSOS_COVERFLOW_TRANSITION_ACTION_SLOT, OSOS_COVERFLOW_ACTION,
+              cfw_coverflow_action);

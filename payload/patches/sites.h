@@ -161,3 +161,22 @@
 #define OSOS_BROWSER_CURRENT_LIST_REF 0x1f4
 #define OSOS_LIST_REF_INIT 0x0827aae0
 #define OSOS_LIST_REF_DESTROY 0x0827ab80
+
+/* Cover Flow (TCoverFlowCntlr): action dispatcher (vtable +0x114, both vtables). */
+#define OSOS_COVERFLOW_ACTION 0x08162928
+#define OSOS_COVERFLOW_ACTION_SLOT 0x089905b0
+#define OSOS_COVERFLOW_TRANSITION_ACTION_SLOT 0x0899e5f8
+/* Controller +0xb0: the flow; flow +0xc0: album shown on the backside (-1 none). */
+#define OSOS_COVERFLOW_FLOW 0xb0
+#define OSOS_COVERFLOW_FLOW_ALBUM 0xc0
+/* Backside track list: the Cover Flow model (0x08274e84) keeps the album's song
+   browser at +0x158; browser vtable +0x22c builds the media item for a row, as
+   the model's play-song method (0x08274c20) does. */
+#define OSOS_COVERFLOW_MODEL_GET 0x08274e84
+#define OSOS_COVERFLOW_MODEL_BROWSER 0x158
+#define OSOS_BROWSER_ITEM_AT 0x22c
+#define OSOS_MEDIA_ITEM_DESTROY 0x08266da0
+/* Hold menus: construct, show from a controller, destroy. */
+#define OSOS_CONTEXT_MENU_INIT 0x081624e8
+#define OSOS_CONTROLLER_SHOW_CONTEXT_MENU 0x08129d78
+#define OSOS_CONTEXT_MENU_DESTROY 0x0816250c
