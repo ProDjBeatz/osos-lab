@@ -6,6 +6,7 @@
 #include "cfw.h"
 #include "preferences.h"
 #include "patch.h"
+#include "playlist_rename.h"
 
 enum {
     DARK_MODE_OFF_RECORD = 0x304b5244, /* DRK0 */
@@ -133,7 +134,8 @@ PATCH_ARM uint32_t cfw_dark_mode_reflection_blend(uint32_t pixel, uint32_t backg
 
 PATCH_ARM void cfw_dark_mode_text_color(void *context, const unsigned char *color)
 {
-    unsigned char mapped[4];
+    unsigned char mapped[4], rename[4];
+    color = cfw_playlist_rename_text_color(color, rename);
     if (enabled && color[0] == color[1] && color[1] == color[2] &&
         color[0] <= TEXT_DARK_MAX) {
         mapped[0] = mapped[1] = mapped[2] = TEXT_LIGHT_BASE - color[0] / 2;

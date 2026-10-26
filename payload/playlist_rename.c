@@ -132,6 +132,18 @@ static int rename_to(void *list, const char *text)
     return ((set_name)OSOS_PLAYLIST_SET_NAME)(list, &name);
 }
 
+const unsigned char *cfw_playlist_rename_text_color(const unsigned char *color,
+                                                    unsigned char *out)
+{
+    /* Grey RGBA (equal channels, not light) or translucent text -> opaque black. */
+    if (!rename_controller || color[0] != color[1] || color[1] != color[2] ||
+        (color[0] > 0xc0 && color[3] == 0xff))
+        return color;
+    out[0] = out[1] = out[2] = 0;
+    out[3] = 0xff;
+    return out;
+}
+
 /* TSilverMediaListCntlr_Playlists vtable +0x148: remember the held row. */
 PATCH_ARM int cfw_playlists_menu(void *controller, int row)
 {
