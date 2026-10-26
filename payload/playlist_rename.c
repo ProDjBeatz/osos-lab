@@ -135,8 +135,12 @@ static int rename_to(void *list, const char *text)
 const unsigned char *cfw_playlist_rename_text_color(const unsigned char *color,
                                                     unsigned char *out)
 {
-    /* Grey RGBA (equal channels, not light) or translucent text -> opaque black. */
-    if (!rename_controller || color[0] != color[1] || color[1] != color[2] ||
+    /* The typed name is drawn grey or translucent on the light edit box; make it
+       opaque black. Solid black text (the title) is left alone, so Dark Mode
+       still lightens it for the dark title bar. */
+    int grey = color[0] == color[1] && color[1] == color[2];
+    int solid_black = color[0] == 0 && color[3] == 0xff;
+    if (!rename_controller || !grey || solid_black ||
         (color[0] > 0xc0 && color[3] == 0xff))
         return color;
     out[0] = out[1] = out[2] = 0;

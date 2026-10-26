@@ -7,8 +7,9 @@
 int cfw_playlist_rename_action(void *controller, const char *action,
                                uint32_t argument);
 
-/* While the rename screen is open, draw grey text (the typed name) solid
-   black. Returns the colour to use: color itself, or out filled in. */
+/* While the rename screen is open, draw grey or translucent text (the typed name
+   in the light edit box) solid black. Returns color itself, or out filled in;
+   callers must not recolour a returned out (Dark Mode included). */
 const unsigned char *cfw_playlist_rename_text_color(const unsigned char *color,
                                                     unsigned char *out);
 
