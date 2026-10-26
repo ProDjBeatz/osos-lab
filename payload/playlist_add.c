@@ -559,6 +559,21 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     int row = view ? ((highlighted)osos_method(view, OSOS_LIST_VIEW_HIGHLIGHTED))(view) : -1;
     if (row >= 0)
         ((void (*)(int))OSOS_LIST_FLASH_ROW)(row);
+    /* Reload the song list and the Playlists counts, as the native On-The-Go
+       removal does (0x0822fb98): the browser takes the controller's playlist
+       reference again (vtable +0x1ec), then the Playlists model refreshes. */
+    typedef void *(*get_model)(void *);
+    typedef void (*set_current)(void *, void *);
+    typedef void *(*instance)(void);
+    typedef void (*refresh)(void *, int);
+    void *model = ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
+        (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER);
+    if (model)
+        ((set_current)osos_method(model, OSOS_BROWSER_SET_CURRENT_LIST_REF))(
+            model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
+    void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
+    if (playlists)
+        ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
 }
 
 /* Cover Flow album whose backside the song came from; -1 for other screens. */

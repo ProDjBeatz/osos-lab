@@ -159,6 +159,12 @@
 #define OSOS_NESTED_PLAYLISTS_TRANSITION_MENU_SLOT 0x089a64c8
 #define OSOS_NESTED_PLAYLISTS_BROWSER 0xb4
 #define OSOS_LIBRARY_MODEL_REF_GET 0x083ccd1c
+/* Song list controller's own playlist reference, and the browser model method
+   that makes a list reference current again (vtable +0x1ec). */
+#define OSOS_NESTED_PLAYLISTS_LIST_REF 0xd4
+#define OSOS_BROWSER_SET_CURRENT_LIST_REF 0x1ec
+/* Playlists model refresh (vtable +0x9c). */
+#define OSOS_PLAYLISTS_REFRESH 0x9c
 /* Browser model: current list as a list reference (vtable +0x1f4). */
 #define OSOS_BROWSER_CURRENT_LIST_REF 0x1f4
 #define OSOS_LIST_REF_INIT 0x0827aae0
