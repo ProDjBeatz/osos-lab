@@ -402,6 +402,65 @@ static void apply_saved(void)
     }
 }
 
+
+/* Temporary diagnostics: CFWDebugLoad after each library load, CFWDebugAdd after
+   each add. */
+static struct {
+    uint32_t magic, count;
+    uint32_t words[2046];
+} debug;
+static const struct osos_path debug_load_path = {0, "iPod_Control\\Device\\CFWDebugLoad"};
+static const struct osos_path debug_add_path = {0, "iPod_Control\\Device\\CFWDebugAdd"};
+
+static void debug_put(uint32_t value)
+{
+    if (debug.count < sizeof(debug.words) / 4)
+        debug.words[debug.count++] = value;
+}
+
+static void debug_dump(const struct osos_path *path, struct osos_media_list *chosen)
+{
+    debug.magic = 0x47424443;
+    debug.count = 0;
+    debug_put((uint32_t)(uintptr_t)chosen);
+    debug_put((uint32_t)(uintptr_t)otg_list());
+    struct osos_media_list *first = first_list();
+    debug_put((uint32_t)(uintptr_t)first);
+    unsigned lists = 0;
+    for (struct osos_media_list *list = first; is_list(list) && lists < 150;
+         list = next_list(list), lists++) {
+        struct osos_media_entry *root = osos_list_root(list);
+        debug_put((uint32_t)(uintptr_t)list);
+        debug_put(list_id(list)[0]);
+        debug_put(list_id(list)[1]);
+        debug_put(own_name_hash(list));
+        debug_put(root ? root->tracks | (uint32_t)root->groups << 16 : 0xffffffffu);
+        debug_put(*word_pair(list, 0x18c));
+        debug_put(*word_pair(list, 0x1ac));
+    }
+    debug_put(0x50414952); /* PAIR */
+    struct pair_file *files[2] = {&adds, &removes};
+    for (int f = 0; f < 2; f++) {
+        debug_put(files[f]->count);
+        for (uint32_t i = 0; i < files[f]->count && i < 40; i++) {
+            struct saved_pair *pair = &files[f]->entries[i];
+            debug_put(pair->list[0]);
+            debug_put(pair->list[1]);
+            debug_put(pair->list_name);
+            debug_put(first ? (uint32_t)(uintptr_t)saved_list(first, pair) : 0);
+        }
+    }
+    if (chosen) {
+        debug_put(0x43484f53); /* CHOS */
+        debug_put(list_id(chosen)[0]);
+        debug_put(list_id(chosen)[1]);
+        debug_put(own_name_hash(chosen));
+        debug_put(*word_pair(chosen, 0x0c));
+        debug_put(*word_pair(chosen, 0x10));
+    }
+    cfw_preferences_write(path, &debug, sizeof(debug));
+}
+
 static int list_exists(const uint32_t *id)
 {
     struct osos_media_list *first = first_list();
@@ -419,6 +478,7 @@ PATCH_ARM int cfw_database_load(void *media_database)
         /* Renames first: iPod-made playlists are found by their own names. */
         cfw_playlist_names_reconcile(list_exists);
         apply_saved();
+        debug_dump(&debug_load_path, NULL);
     }
     return result;
 }
@@ -618,6 +678,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
             else
                 remember(list, entry);
         }
+        debug_dump(&debug_add_path, list);
     }
     restore_coverflow();
     /* playlist_add.ui binds controller.CFW_AddedToPlaylist to PopTopScreen. */
