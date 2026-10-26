@@ -16,8 +16,8 @@
  * Renames persist in iPod_Control\Device\CFWNames, one entry per playlist keyed
  * by its iTunesDB persistent ID. The iPod never writes iTunesDB, so after a reboot
  * or sync the library brings back the computer's name; the playlist name getter is
- * hooked to show the saved name instead. Newly saved On-The-Go playlists get new
- * IDs, so they never inherit an old rename.
+ * hooked to show the saved name instead. Playlists made on the iPod fall back to
+ * matching by their own name, since they have no lasting ID.
  */
 #include "osos.h"
 #include "cfw.h"
@@ -44,13 +44,27 @@ struct native_name {
 };
 
 /* Saved renames, keyed by the iTunesDB playlist persistent ID (mhyp +0x1c, which
-   the importer stores at list +0x30). Names are length-prefixed UTF-16. */
+   the importer stores at list +0x30). Playlists made on the iPod are not in
+   iTunesDB: they get no ID or a new one at each load, so each entry also keeps the
+   playlist's own name ("Playlist 1") and falls back to it when its ID is not in
+   the library (see cfw_playlist_names_reconcile). Names are length-prefixed
+   UTF-16. */
 #define SAVED_MAX 32
 #define SAVED_UNITS 63
 #define SAVED_MAGIC 0x4e574643u /* "CFWN" */
-#define SAVED_VERSION 2
+#define SAVED_VERSION 3
+#define SAVED_VERSION_ID_ONLY 2
 
 struct saved_name {
+    uint32_t id[2];
+    uint16_t renamed[SAVED_UNITS + 1];
+    /* Library (or iPod-given) name when renamed; matched when orphaned. */
+    uint16_t original[SAVED_UNITS + 1];
+    uint32_t orphan;
+};
+
+/* Version 2 entries: ID and new name only. */
+struct saved_name_id_only {
     uint32_t id[2];
     uint16_t renamed[SAVED_UNITS + 1];
 };
@@ -67,15 +81,6 @@ int cfw_playlist_get_name_original(void *list, struct native_name *name);
 static const uint32_t *playlist_id(void *list)
 {
     return (const uint32_t *)((const uint8_t *)list + OSOS_PLAYLIST_PERSISTENT_ID);
-}
-
-static struct saved_name *saved_for(void *list)
-{
-    const uint32_t *id = playlist_id(list);
-    for (uint32_t i = 0; i < saved.count; i++)
-        if (saved.entries[i].id[0] == id[0] && saved.entries[i].id[1] == id[1])
-            return &saved.entries[i];
-    return NULL;
 }
 
 static int same_name(const uint16_t *a, const uint16_t *b)
@@ -96,43 +101,118 @@ static void copy_name(uint16_t *to, const uint16_t *from, uint16_t limit)
         to[i] = from[i];
 }
 
+static struct saved_name *saved_by_id(const uint32_t *id)
+{
+    if (!id[0] && !id[1])
+        return NULL;
+    for (uint32_t i = 0; i < saved.count; i++)
+        if (!saved.entries[i].orphan && saved.entries[i].id[0] == id[0] &&
+            saved.entries[i].id[1] == id[1])
+            return &saved.entries[i];
+    return NULL;
+}
+
+/* original: the playlist's name before renaming (from the unhooked getter). */
+static struct saved_name *saved_for(void *list, const uint16_t *original)
+{
+    const uint32_t *id = playlist_id(list);
+    struct saved_name *entry = saved_by_id(id);
+    if (entry || !original || !original[0])
+        return entry;
+    for (uint32_t i = 0; i < saved.count; i++) {
+        entry = &saved.entries[i];
+        if ((entry->orphan || (!entry->id[0] && !entry->id[1])) && entry->original[0] &&
+            same_name(entry->original, original)) {
+            /* Adopt this load's ID in memory so later lookups match directly; the
+               file keeps the old one, and the next load reconciles again. */
+            entry->id[0] = id[0];
+            entry->id[1] = id[1];
+            entry->orphan = !id[0] && !id[1];
+            return entry;
+        }
+    }
+    return NULL;
+}
+
 /* Boot: loaded from cfw_preferences_hook with the other CFW settings. */
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
 void cfw_playlist_names_load(void)
 {
-    if (!cfw_preferences_read(&saved_path, &saved, sizeof(saved)) ||
-        saved.magic != SAVED_MAGIC || saved.version != SAVED_VERSION ||
-        saved.count > SAVED_MAX)
-        saved.count = 0;
+    if (cfw_preferences_read(&saved_path, &saved, sizeof(saved)) &&
+        saved.magic == SAVED_MAGIC && saved.version == SAVED_VERSION &&
+        saved.count <= SAVED_MAX) {
+        for (uint32_t i = 0; i < saved.count; i++)
+            saved.entries[i].orphan = 0;
+    } else {
+        /* Earlier files: read into the same storage, then widen each entry from
+           the last one down so no entry is overwritten before it is moved. */
+        struct saved_name_id_only *old = (struct saved_name_id_only *)saved.entries;
+        uint32_t size = 12 + SAVED_MAX * sizeof(*old);
+        if (!cfw_preferences_read(&saved_path, &saved, size) ||
+            saved.magic != SAVED_MAGIC || saved.version != SAVED_VERSION_ID_ONLY ||
+            saved.count > SAVED_MAX)
+            saved.count = 0;
+        for (uint32_t i = saved.count; i-- > 0;) {
+            struct saved_name *entry = &saved.entries[i];
+            uint32_t id0 = old[i].id[0], id1 = old[i].id[1];
+            uint16_t renamed[SAVED_UNITS + 1];
+            copy_name(renamed, old[i].renamed, SAVED_UNITS);
+            entry->id[0] = id0;
+            entry->id[1] = id1;
+            copy_name(entry->renamed, renamed, SAVED_UNITS);
+            entry->original[0] = 0;
+            entry->orphan = 0;
+        }
+    }
     saved.magic = SAVED_MAGIC;
     saved.version = SAVED_VERSION;
 }
 
+/* After each library load: entries whose playlist ID is gone match by name. */
+void cfw_playlist_names_reconcile(int (*exists)(const uint32_t *id))
+{
+    for (uint32_t i = 0; i < saved.count; i++) {
+        struct saved_name *entry = &saved.entries[i];
+        entry->orphan = (!entry->id[0] && !entry->id[1]) || !exists(entry->id);
+    }
+}
+
 /* One entry per playlist, overwritten on every rename; the whole fixed-size file
-   is rewritten in place. Renaming back to the library's name drops the entry. */
+   is rewritten in place. Renaming back to the original name drops the entry. */
 static void remember(void *list, const struct native_name *renamed)
 {
-    const uint32_t *id = playlist_id(list);
     struct native_name library;
-    if ((!id[0] && !id[1]) || renamed->length > SAVED_UNITS)
+    if (renamed->length > SAVED_UNITS)
         return;
     library.length = 0;
     cfw_playlist_get_name_original(list, &library);
-    struct saved_name *entry = saved_for(list);
-    if (same_name(&library.length, &renamed->length)) {
+    struct saved_name *entry = saved_for(list, &library.length);
+    /* Compare with the name before the first rename, not an earlier rename. */
+    if (same_name(entry && entry->original[0] ? entry->original : &library.length,
+                  &renamed->length)) {
         if (!entry)
             return;
         struct saved_name *last = &saved.entries[--saved.count];
-        entry->id[0] = last->id[0];
-        entry->id[1] = last->id[1];
-        copy_name(entry->renamed, last->renamed, SAVED_UNITS);
+        if (entry != last) {
+            entry->id[0] = last->id[0];
+            entry->id[1] = last->id[1];
+            copy_name(entry->renamed, last->renamed, SAVED_UNITS);
+            copy_name(entry->original, last->original, SAVED_UNITS);
+            entry->orphan = last->orphan;
+        }
     } else {
         if (!entry) {
             if (saved.count == SAVED_MAX)
                 return;
             entry = &saved.entries[saved.count++];
-            entry->id[0] = id[0];
-            entry->id[1] = id[1];
+            entry->original[0] = 0;
+            entry->orphan = 0;
         }
+        const uint32_t *id = playlist_id(list);
+        entry->id[0] = id[0];
+        entry->id[1] = id[1];
+        if (!entry->original[0])
+            copy_name(entry->original, &library.length, SAVED_UNITS);
         copy_name(entry->renamed, &renamed->length, SAVED_UNITS);
     }
     cfw_preferences_write(&saved_path, &saved, sizeof(saved));
@@ -142,7 +222,7 @@ static void remember(void *list, const struct native_name *renamed)
 PATCH_ARM int cfw_playlist_get_name(void *list, struct native_name *name)
 {
     int result = cfw_playlist_get_name_original(list, name);
-    struct saved_name *entry = list && name ? saved_for(list) : NULL;
+    struct saved_name *entry = list && name ? saved_for(list, &name->length) : NULL;
     if (entry)
         copy_name(&name->length, entry->renamed, SAVED_UNITS);
     return result;

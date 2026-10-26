@@ -26,6 +26,7 @@
 #include "play_next.h"
 #include "playlist_add.h"
 #include "playlist_add_ui.h"
+#include "playlist_rename.h"
 
 #define ADDS_MAGIC 0x41574643u    /* "CFWA" */
 #define REMOVES_MAGIC 0x52574643u /* "CFWR" */
@@ -323,6 +324,12 @@ static void apply_saved(void)
     }
 }
 
+static int list_exists(const uint32_t *id)
+{
+    struct osos_media_list *first = first_list();
+    return first && find_list(first, id) != NULL;
+}
+
 /* Both library loads (boot and after a sync). */
 PATCH_ARM int cfw_database_load(void *media_database)
 {
@@ -330,8 +337,10 @@ PATCH_ARM int cfw_database_load(void *media_database)
     pending = NULL;
     int result = ((load)OSOS_DATABASE_LOAD)(media_database);
     database = media_database;
-    if (database)
+    if (database) {
         apply_saved();
+        cfw_playlist_names_reconcile(list_exists);
+    }
     return result;
 }
 

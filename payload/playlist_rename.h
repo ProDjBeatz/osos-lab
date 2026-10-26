@@ -10,4 +10,7 @@ int cfw_playlist_rename_action(void *controller, const char *action,
 /* Load saved playlist renames (called with the other CFW settings at boot). */
 void cfw_playlist_names_load(void);
 
+/* After each library load: playlists whose saved ID is gone match by name. */
+void cfw_playlist_names_reconcile(int (*exists)(const uint32_t *id));
+
 #endif
