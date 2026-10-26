@@ -132,20 +132,26 @@ static int rename_to(void *list, const char *text)
     return ((set_name)OSOS_PLAYLIST_SET_NAME)(list, &name);
 }
 
-const unsigned char *cfw_playlist_rename_text_color(const unsigned char *color,
-                                                    unsigned char *out)
+void cfw_dark_mode_text_color(void *context, const unsigned char *color);
+
+static int same_text(const char *a, const char *b)
 {
-    /* The typed name is drawn grey or translucent on the light edit box; make it
-       opaque black. Solid black text (the title) is left alone, so Dark Mode
-       still lightens it for the dark title bar. */
-    int grey = color[0] == color[1] && color[1] == color[2];
-    int solid_black = color[0] == 0 && color[3] == 0xff;
-    if (!rename_controller || !grey || solid_black ||
-        (color[0] > 0xc0 && color[3] == 0xff))
-        return color;
-    out[0] = out[1] = out[2] = 0;
-    out[3] = 0xff;
-    return out;
+    while (*a && *a == *b)
+        a++, b++;
+    return *a == *b;
+}
+
+PATCH_ARM void cfw_text_draw_color(void *context, const unsigned char *color,
+                                   const char *text)
+{
+    static const unsigned char black[4] = {0, 0, 0, 0xff};
+    void *model = rename_controller && text && *text ? search_model() : NULL;
+    const char *typed_now = model ? get_query(model) : NULL;
+    if (typed_now && same_text(text, typed_now)) {
+        osos_graphics_set_color(context, black);
+        return;
+    }
+    cfw_dark_mode_text_color(context, color);
 }
 
 /* TSilverMediaListCntlr_Playlists vtable +0x148: remember the held row. */
