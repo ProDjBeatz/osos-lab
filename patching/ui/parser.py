@@ -5,7 +5,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .model import Document, Item, ScreenEvent, Values
+from .model import Document, Item, ScreenClone, ScreenEvent, Values
 
 
 def attributes(node, required="", optional="", children=()):
@@ -74,6 +74,7 @@ class Parser:
                 "settings-entry",
                 "string",
                 "screen-event",
+                "screen-clone",
                 "music-entry",
             ),
         )
@@ -85,6 +86,7 @@ class Parser:
             document.root is None
             and not document.strings
             and not document.events
+            and not document.clones
             and document.music_entry is None
         ):
             raise ValueError("Incomplete UI declaration")
@@ -135,6 +137,17 @@ class Parser:
             document.strings[self.identifier(node)] = node.attrib["text"]
         elif node.tag == "screen-event":
             document.events.append(self.parse_screen_event(node))
+        elif node.tag == "screen-clone":
+            attributes(node, "id screen layout title", "drop")
+            document.clones.append(
+                ScreenClone(
+                    self.identifier(node),
+                    resource_reference(node.attrib["screen"]),
+                    resource_reference(node.attrib["layout"]),
+                    node.attrib["title"],
+                    tuple(resource_reference(v) for v in node.get("drop", "").split()),
+                )
+            )
         elif node.tag == "music-entry":
             attributes(node, "id title after screen layout open highlight")
             if document.music_entry is not None:

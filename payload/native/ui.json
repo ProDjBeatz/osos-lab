@@ -36,6 +36,8 @@
     "MediaLists_Artists_Screen_Default": 229443569,
     "MediaLists_Albums_Screen": 229443565,
     "MediaLists_Playlists_Screen": 229443590,
-    "Search_Main_Screen": 229445087
+    "Search_Main_Screen": 229445087,
+    "Search_Main_Screen_WithKeyboardNow": 229445091,
+    "MainMenu_Template": 229441970
   }
 }

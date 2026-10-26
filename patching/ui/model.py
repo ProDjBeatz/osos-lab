@@ -34,6 +34,18 @@ class ScreenEvent:
 
 
 @dataclass
+class ScreenClone:
+    """A new screen reusing a stock screen's controller and one of its layouts."""
+
+    name: str
+    screen: str | int
+    layout: str | int
+    title: str
+    # Template instances (by template resource) left out of the cloned layout.
+    drop: tuple[str | int, ...] = ()
+
+
+@dataclass
 class Document:
     root: Item | None
     values: dict[str, Values]
@@ -43,6 +55,7 @@ class Document:
     open_action: str = ""
     strings: dict[str, str] = field(default_factory=dict)
     events: list[ScreenEvent] = field(default_factory=list)
+    clones: list[ScreenClone] = field(default_factory=list)
     music_entry: dict[str, str] | None = None
 
 

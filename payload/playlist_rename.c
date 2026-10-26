@@ -116,9 +116,14 @@ static int rename_to(void *list, const char *text)
     typedef int (*set_name)(void *, struct native_name *);
     struct native_name name;
     uint16_t n = 0;
-    /* The Search keyboard only produces ASCII letters, digits and spaces. */
-    while (n < NAME_MAX && text[n])
-        name.text[n] = (uint8_t)text[n], n++;
+    /* The Search keyboard only produces ASCII letters, digits and spaces. Title-case
+       here too: the first keystroke can reach the query without our hook. */
+    for (; n < NAME_MAX && text[n]; n++) {
+        char c = text[n];
+        if (c >= 'a' && c <= 'z' && (n == 0 || text[n - 1] == ' '))
+            c -= 'a' - 'A';
+        name.text[n] = (uint8_t)c;
+    }
     while (n && name.text[n - 1] == ' ')
         n--;
     if (!n)
