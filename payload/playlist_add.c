@@ -538,28 +538,69 @@ void cfw_playlist_add_menu(struct osos_context_menu *menu)
 }
 
 
-/* Temporary diagnostics for the highlight after Remove from Playlist. */
-static struct {
-    uint32_t magic, count;
-    uint32_t words[510];
-} debug;
-static const struct osos_path debug_path = {0, "iPod_Control\\Device\\CFWDebugRemove"};
-
-static void debug_put(uint32_t value)
+/* The list view (TListView) showing the current song list: the list UI model's
+   container (+0x38) cast to the list view interface. */
+static void *current_list_view(void)
 {
-    if (debug.count < sizeof(debug.words) / 4)
-        debug.words[debug.count++] = value;
+    typedef void *(*get)(void);
+    typedef void *(*cast)(void *, uint32_t);
+    uint8_t *ui = ((get)OSOS_LIST_VIEW_MODEL)();
+    void *container = ui ? *(void **)(ui + OSOS_LIST_UI_CONTAINER) : NULL;
+    return container ? ((cast)OSOS_INTERFACE_CAST)(container, OSOS_LIST_VIEW_INTERFACE)
+                     : NULL;
 }
 
-static void debug_object(const void *object, unsigned from, unsigned to)
+/* A removal waiting for its row's blink to finish before the list reloads. */
+static struct {
+    void *controller, *view;
+    struct osos_media_list *list;
+    int row;
+} reload;
+
+static void reload_song_list(void)
 {
-    debug_put((uint32_t)(uintptr_t)object);
-    for (unsigned i = from; i < to; i += 4)
-        debug_put(object ? *word_pair(object, i) : 0);
+    typedef void *(*get_model)(void *);
+    typedef void (*set_current)(void *, void *);
+    typedef void *(*instance)(void);
+    typedef void (*refresh)(void *, int);
+    typedef void (*select_row)(void *, int, int);
+    void *controller = reload.controller;
+    int row = reload.row;
+    struct osos_media_entry *root = osos_list_root(reload.list);
+    reload.controller = reload.view = NULL;
+    /* As the native On-The-Go removal does (0x0822fb98): the browser takes the
+       controller's playlist reference again, then the Playlists model refreshes. */
+    void *model = ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
+        (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER);
+    if (model)
+        ((set_current)osos_method(model, OSOS_BROWSER_SET_CURRENT_LIST_REF))(
+            model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
+    void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
+    if (playlists)
+        ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
+    /* The reload puts the highlight on the first row: move it to the song that
+       took the removed one's place (or the new last song). */
+    int count = root ? root->tracks : 0;
+    if (row >= count)
+        row = count - 1;
+    void *view = current_list_view();
+    if (view && row > 0)
+        ((select_row)osos_method(view, OSOS_LIST_VIEW_SELECT_ROW))(view, row, 1);
+}
+
+/* End of a list view's row blink (it sends the blink's list event here). */
+PATCH_ARM void cfw_list_blink_done(void *view, void *event, int flags)
+{
+    typedef void (*send)(void *, void *, int);
+    ((send)OSOS_VIEW_SEND_EVENT)(view, event, flags);
+    if (reload.controller && reload.view == view && current_list_view() == view)
+        reload_song_list();
 }
 
 void cfw_playlist_remove(void *controller, struct osos_media_item *item)
 {
+    typedef void *(*get_ui)(void);
+    typedef int (*highlighted)(void *);
     struct osos_media_record *record =
         !item ? NULL : item->record ? item->record
                                     : (osos_media_item_entry(item)
@@ -571,45 +612,21 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     struct osos_media_entry *entry = entry_for_record(list, record);
     if (!entry)
         return;
-    typedef void *(*get_view0)(void);
-    typedef int (*highlighted0)(void *);
-    void *view0 = ((get_view0)OSOS_LIST_VIEW_MODEL)();
-    debug.magic = 0x47424443;
-    debug.count = 0;
-    debug_object(view0, 0, 0x40);
-    debug_object(view0 ? *(void **)view0 : NULL, 0x100, 0x200);
-    debug_object(controller, 0x80, 0x120);
-    debug_put(view0 ? (uint32_t)((highlighted0)osos_method(view0, OSOS_LIST_VIEW_HIGHLIGHTED))(view0) : 0xffff);
+    void *ui = ((get_ui)OSOS_LIST_VIEW_MODEL)();
+    int row = ui ? ((highlighted)osos_method(ui, OSOS_LIST_VIEW_HIGHLIGHTED))(ui) : -1;
+    void *view = current_list_view();
     delete_entry(list, entry);
     forget(list, record);
-    /* Blink the row the way the iPod does for On-The-Go adds and removals. */
-    typedef void *(*get_view)(void);
-    typedef int (*highlighted)(void *);
-    void *view = ((get_view)OSOS_LIST_VIEW_MODEL)();
-    int row = view ? ((highlighted)osos_method(view, OSOS_LIST_VIEW_HIGHLIGHTED))(view) : -1;
-    if (row >= 0)
+    reload.controller = controller;
+    reload.view = view;
+    reload.list = list;
+    reload.row = row;
+    /* Blink the row the way the iPod does for On-The-Go: the old row stays on
+       screen while it blinks, and the list reloads when the blink ends. */
+    if (row >= 0 && view)
         ((void (*)(int))OSOS_LIST_FLASH_ROW)(row);
-    /* Reload the song list and the Playlists counts, as the native On-The-Go
-       removal does (0x0822fb98): the browser takes the controller's playlist
-       reference again (vtable +0x1ec), then the Playlists model refreshes. */
-    typedef void *(*get_model)(void *);
-    typedef void (*set_current)(void *, void *);
-    typedef void *(*instance)(void);
-    typedef void (*refresh)(void *, int);
-    void *model = ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
-        (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER);
-    if (model)
-        ((set_current)osos_method(model, OSOS_BROWSER_SET_CURRENT_LIST_REF))(
-            model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
-    void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
-    if (playlists)
-        ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
-    view0 = ((get_view0)OSOS_LIST_VIEW_MODEL)();
-    debug_put(0x41465445); /* AFTE */
-    debug_object(view0, 0, 0x40);
-    debug_object(controller, 0x80, 0x120);
-    debug_put(view0 ? (uint32_t)((highlighted0)osos_method(view0, OSOS_LIST_VIEW_HIGHLIGHTED))(view0) : 0xffff);
-    cfw_preferences_write(&debug_path, &debug, sizeof(debug));
+    else
+        reload_song_list();
 }
 
 /* Cover Flow album whose backside the song came from; -1 for other screens. */

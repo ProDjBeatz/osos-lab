@@ -165,3 +165,5 @@ PATCH_POINTER(OSOS_COVERFLOW_TRANSITION_ACTION_SLOT, OSOS_COVERFLOW_ACTION,
               cfw_coverflow_action);
 /* push {r4-r9, lr}; movs r5, r1 */
 PATCH_JUMP(OSOS_COVERFLOW_APPEAR, 0xe92d43f0, 0xe1b05001, cfw_coverflow_appear);
+/* Remove from Playlist: reload the song list when the row's blink ends. */
+PATCH_CALL(OSOS_LIST_BLINK_DONE_CALL, OSOS_VIEW_SEND_EVENT, cfw_list_blink_done);

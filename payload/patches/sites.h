@@ -137,6 +137,16 @@
 /* List view model shared by media lists: highlighted row is vtable +0x168. */
 #define OSOS_LIST_VIEW_MODEL 0x0817dde4
 #define OSOS_LIST_VIEW_HIGHLIGHTED 0x168
+/* List UI model: container view at +0x38; cast (vtable +0x14 via 0x0826c594) to
+   the list view interface 0x1700 (TListView: select row r1, scroll if r2, at
+   vtable +0x16c). */
+#define OSOS_LIST_UI_CONTAINER 0x38
+#define OSOS_INTERFACE_CAST 0x0826c594
+#define OSOS_LIST_VIEW_INTERFACE 0x1700
+#define OSOS_LIST_VIEW_SELECT_ROW 0x16c
+/* TListView blink timer end: sends the blink's list event (0x08119f7c). */
+#define OSOS_LIST_BLINK_DONE_CALL 0x0827f4e4
+#define OSOS_VIEW_SEND_EVENT 0x08119f7c
 /* Blink a list row (list view vtable +0x18c), as after an On-The-Go add. */
 #define OSOS_LIST_FLASH_ROW 0x082896f4
 /* List byte that makes the cached song counts (+0x61c, +0x620) recount. */
