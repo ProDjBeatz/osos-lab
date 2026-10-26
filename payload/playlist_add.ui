@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <ui>
   <string id="CFW_ADD_TO_PLAYLIST" text="Add to Playlist"/>
+  <string id="CFW_REMOVE_FROM_PLAYLIST" text="Remove from Playlist"/>
+  <!-- Inside a playlist: hold Center on a song, choose Remove from Playlist. -->
+  <screen-event screen="MediaLists_NestedPlaylists_Screen"
+                event="contextualMenu.CFW_RemoveFromPlaylist"
+                handler="CFW_RemoveFromPlaylist"/>
   <!-- Playlist chooser: the stock Playlists controller and list, as a new screen
        whose click adds the held song instead of opening the playlist. -->
   <screen-clone id="CFW_AddToPlaylist"

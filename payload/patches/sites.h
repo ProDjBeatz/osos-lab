@@ -141,3 +141,23 @@
 #define OSOS_LIST_COUNTS_STALE 0x618
 /* Media-list controller: list row -> data row (vtable +0x130). */
 #define OSOS_MEDIA_LIST_MAP_ROW 0x130
+/* Library list flag (list +0x18c byte): set on the whole-library list. */
+#define OSOS_LIST_KIND_FLAGS 0x18c
+#define OSOS_LIST_KIND_LIBRARY 0x40
+
+/* Remove from Playlist. Native playlist item delete ('dpli') and the
+   playlist-changed notice ('cpld'), as used by the list reference remove-row
+   routine 0x0827a8c8. */
+#define OSOS_PLAYLIST_ITEM_DELETE 0x0803db30
+#define OSOS_PLAYLIST_CHANGED 0x080564b8
+/* Playlists > a playlist (TSilverMediaListCntlr_NestedPlaylists): hold menu
+   builder (vtable +0x148, both vtables) and its browser model reference. */
+#define OSOS_NESTED_PLAYLISTS_BUILD_MENU 0x0822fdb4
+#define OSOS_NESTED_PLAYLISTS_MENU_SLOT 0x089aaba0
+#define OSOS_NESTED_PLAYLISTS_TRANSITION_MENU_SLOT 0x089a64c8
+#define OSOS_NESTED_PLAYLISTS_BROWSER 0xb4
+#define OSOS_LIBRARY_MODEL_REF_GET 0x083ccd1c
+/* Browser model: current list as a list reference (vtable +0x1f4). */
+#define OSOS_BROWSER_CURRENT_LIST_REF 0x1f4
+#define OSOS_LIST_REF_INIT 0x0827aae0
+#define OSOS_LIST_REF_DESTROY 0x0827ab80

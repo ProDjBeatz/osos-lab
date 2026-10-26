@@ -3,10 +3,12 @@
 #define CFW_PLAYLIST_ADD_H
 #include "osos.h"
 
-/* Song hold menus: add the Add to Playlist item. */
+/* Song hold menus: add Add to Playlist (and Remove from Playlist inside one). */
 void cfw_playlist_add_menu(struct osos_context_menu *menu);
 /* Song chosen from a hold menu (NULL clears it). */
 void cfw_playlist_add_select(struct osos_media_item *item);
+/* Song list inside a playlist: remove the item's song from that playlist. */
+void cfw_playlist_remove(void *controller, struct osos_media_item *item);
 /* Playlist chooser: returns 1 when action was handled or support-queried. */
 int cfw_playlist_add_action(void *controller, const char *action, uint32_t argument);
 

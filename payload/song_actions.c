@@ -59,6 +59,14 @@ static int song_action(void *controller, enum song_source source,
         }
         return 1;
     }
+    if (source == PLAYLIST && cfw_string_equal(action, "CFW_RemoveFromPlaylist")) {
+        if (argument != OSOS_ACTION_SUPPORT_QUERY) {
+            struct osos_media_item item;
+            if (selected_item(controller, source, &item))
+                cfw_playlist_remove(controller, &item);
+        }
+        return 1;
+    }
     int info = cfw_string_equal(action, "CFW_SongInfo");
     int last = cfw_string_equal(action, "CFW_PlayLast");
     if (!info && (source == NOW_PLAYING ||

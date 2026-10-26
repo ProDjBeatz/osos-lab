@@ -153,3 +153,8 @@ PATCH_POINTER(OSOS_SEARCH_TRANSITION_MENU_ON_KEYBOARD_SLOT,
 /* Add to Playlist: re-apply saved additions whenever the library is loaded. */
 PATCH_CALL(OSOS_DATABASE_LOAD_BOOT_CALL, OSOS_DATABASE_LOAD, cfw_database_load);
 PATCH_CALL(OSOS_DATABASE_LOAD_RELOAD_CALL, OSOS_DATABASE_LOAD, cfw_database_load);
+/* Remove from Playlist: note which song list builds the hold menu. */
+PATCH_POINTER(OSOS_NESTED_PLAYLISTS_MENU_SLOT, OSOS_NESTED_PLAYLISTS_BUILD_MENU,
+              cfw_nested_playlists_menu);
+PATCH_POINTER(OSOS_NESTED_PLAYLISTS_TRANSITION_MENU_SLOT, OSOS_NESTED_PLAYLISTS_BUILD_MENU,
+              cfw_nested_playlists_menu);
