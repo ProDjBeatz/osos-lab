@@ -173,6 +173,48 @@ static struct osos_media_list *find_list(struct osos_media_list *first,
     return NULL;
 }
 
+
+/* Diagnostics for the "N Songs" count and the added row's artist line: written
+   to iPod_Control\Device\CFWDebug on every add (temporary). */
+static struct {
+    uint32_t magic, count;
+    uint32_t words[2046];
+} debug;
+static const struct osos_path debug_path = {0, "iPod_Control\\Device\\CFWDebug"};
+
+static void debug_put(uint32_t value)
+{
+    if (debug.count < sizeof(debug.words) / 4)
+        debug.words[debug.count++] = value;
+}
+
+static void debug_block(const void *object, unsigned bytes)
+{
+    debug_put((uint32_t)(uintptr_t)object);
+    for (unsigned i = 0; i < bytes; i += 4)
+        debug_put(object ? *word_pair(object, i) : 0);
+}
+
+static void debug_lists(struct osos_media_list *chosen)
+{
+    uint8_t *tracks = (uint8_t *)osos_list_database(chosen);
+    debug_put(0x4c495354); /* LIST */
+    if (!tracks || *word_pair(tracks, 4) != OSOS_TRACK_DATA_MAGIC)
+        return;
+    unsigned lists = 0;
+    for (struct osos_media_list *list =
+             *(struct osos_media_list **)(tracks + OSOS_TRACK_DATA_FIRST_LIST);
+         is_list(list) && lists < 200; list = next_list(list), lists++) {
+        struct osos_media_entry *root = osos_list_root(list);
+        debug_put((uint32_t)(uintptr_t)list);
+        debug_put(list_id(list)[0]);
+        debug_put(list_id(list)[1]);
+        debug_put(root ? root->tracks | (uint32_t)root->groups << 16 : 0xffffffffu);
+        debug_put(*word_pair(list, 0x10));
+        debug_put(*word_pair(list, 0x18c));
+    }
+}
+
 static void apply_saved(void)
 {
     /* Load first, so a later add keeps the saved list even if nothing applies. */
@@ -263,10 +305,21 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     pending = NULL;
     struct osos_media_list *list = entry ? chosen_list(controller) : NULL;
     if (list) {
+        debug.magic = 0x47424443; /* CDBG */
+        debug.count = 0;
+        debug_block(list, 0x1a0);
+        debug_block(osos_list_root(list), 0x30);
+        debug_block(osos_list_root(list) ? osos_list_root(list)->group.last : NULL, 0x30);
+        debug_block(entry, 0x30);
         struct osos_player *player = osos_player_get();
         osos_player_lock(player);
         int added = append(player, list, entry);
         osos_player_unlock(player);
+        debug_put(added);
+        debug_block(osos_list_root(list), 0x30);
+        debug_block(osos_list_root(list)->group.last, 0x30);
+        debug_lists(list);
+        cfw_preferences_write(&debug_path, &debug, sizeof(debug));
         if (added) {
             if (list == otg_list())
                 mark_otg_changed();
