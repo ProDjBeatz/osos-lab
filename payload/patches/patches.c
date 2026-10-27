@@ -20,6 +20,9 @@ PATCH_CALL(OSOS_ALBUM_ART_CLEAR_COLOR_CALL, OSOS_GLES_CLEAR_COLOR_X,
            cfw_dark_mode_clear_color);
 PATCH_CALL(OSOS_ARTWORK_REFLECTION_BLEND_CALL, OSOS_RGB565_BLEND_FIXED,
            cfw_dark_mode_reflection_blend);
+/* Lyrics must not inherit the idle clock's exemption from background darkening
+   (upstream c51e9ca). */
+PATCH_WORD(OSOS_LYRICS_BACKGROUND_COLOR_WORD, 0x0dad0851, 0x0dad00cd);
 
 /* Shared Settings hooks */
 PATCH_POINTER(OSOS_SETTINGS_PROPERTY_SLOT, OSOS_SETTINGS_PROPERTY, cfw_settings_property);
