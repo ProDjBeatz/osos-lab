@@ -311,8 +311,11 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
     pick_controller = NULL;
     void *model = ((model_get)OSOS_PHOTOS_BROWSE_MODEL_GET)();
     if (model) {
-        /* As the Photos menu does for All Photos: album 0, grid, first photo. */
+        /* As the Photos menu does for All Photos: album 0, reload its photos (the
+           menu's highlight does that; without it the grid can show 0 photos),
+           grid, first photo. */
         ((model_int)OSOS_PHOTOS_BROWSE_SET_ALBUM)(model, 0);
+        ((model_void)OSOS_PHOTOS_BROWSE_RELOAD)(model);
         ((model_void)OSOS_PHOTOS_BROWSE_SMALL)(model);
         ((model_int)OSOS_PHOTOS_BROWSE_SELECT)(model, 0);
     }
