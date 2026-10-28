@@ -210,3 +210,27 @@
 #define OSOS_CONTEXT_MENU_INIT 0x081624e8
 #define OSOS_CONTROLLER_SHOW_CONTEXT_MENU 0x08129d78
 #define OSOS_CONTEXT_MENU_DESTROY 0x0816250c
+
+/* Rename keyboard: numbers and symbols page. The Search keyboard's letter keys
+   come from a key list object (vtable: count +0x8, key code at index +0xc;
+   0x6f81 + index for A-Z). Key codes 0x6f9b-0x6fa4 are the digits. */
+#define OSOS_KEY_LIST_COUNT 0x08295e34
+#define OSOS_KEY_LIST_COUNT_SLOT 0x089a71a0
+#define OSOS_KEY_LIST_KEY 0x08295e3c
+#define OSOS_KEY_LIST_KEY_SLOT 0x089a71a4
+#define OSOS_KEY_LETTER_A 0x6f81
+#define OSOS_KEY_DIGIT_0 0x6f9b
+/* Key code -> text ("A", "1", ...), its label provider, and the Search
+   controller's key handler (keyboard event interface 0x7100: code +0xc, kind
+   +0x10, 'KBUP' on release). */
+#define OSOS_KEY_TEXT 0x081d0a0c
+#define OSOS_KEY_TEXT_RESUME 0x081d0a14
+#define OSOS_KEY_LABEL 0x081d0894
+#define OSOS_KEY_LABEL_RESUME 0x081d089c
+#define OSOS_KEY_LABEL_STRING 0x08a124f4
+#define OSOS_STRING_ASSIGN 0x0826ce6c
+#define OSOS_STRING_C_STR 0x0829bd9c
+#define OSOS_SEARCH_KEY 0x08125e94
+#define OSOS_SEARCH_KEY_RESUME 0x08125e9c
+#define OSOS_KEY_EVENT_INTERFACE 0x7100
+#define OSOS_KEY_EVENT_UP 0x4b425550 /* 'KBUP' */

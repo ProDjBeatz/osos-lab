@@ -193,3 +193,12 @@ PATCH_POINTER(OSOS_COVERFLOW_TRANSITION_ACTION_SLOT, OSOS_COVERFLOW_ACTION,
 PATCH_JUMP(OSOS_COVERFLOW_APPEAR, 0xe92d43f0, 0xe1b05001, cfw_coverflow_appear);
 /* Remove from Playlist: reload the song list when the row's blink ends. */
 PATCH_CALL(OSOS_LIST_BLINK_DONE_CALL, OSOS_VIEW_SEND_EVENT, cfw_list_blink_done);
+/* Rename keyboard: a 123/ABC key switches between letters and numbers/symbols. */
+PATCH_POINTER(OSOS_KEY_LIST_COUNT_SLOT, OSOS_KEY_LIST_COUNT, cfw_key_list_count);
+PATCH_POINTER(OSOS_KEY_LIST_KEY_SLOT, OSOS_KEY_LIST_KEY, cfw_key_list_key);
+/* sub r0, r0, #0x6f00; sub r0, r0, #0x81 */
+PATCH_JUMP(OSOS_KEY_TEXT, 0xe2400c6f, 0xe2400081, cfw_key_text);
+/* push {r4-r8, lr}; mov r6, r0 */
+PATCH_JUMP(OSOS_KEY_LABEL, 0xe92d41f0, 0xe1a06000, cfw_key_label);
+/* push {r4-r10, lr}; mov r7, r0 */
+PATCH_JUMP(OSOS_SEARCH_KEY, 0xe92d47f0, 0xe1a07000, cfw_search_key);

@@ -258,6 +258,8 @@ static void *rename_list;
 static int rename_pending;
 /* The Search controller doing the rename; other Search screens behave normally. */
 static void *rename_controller;
+/* Rename keyboard page: 0 letters, 1 numbers and symbols. */
+static int symbol_page;
 static char typed[NAME_MAX + 1];
 
 static void rename_reset(void)
@@ -329,7 +331,7 @@ static int rename_to(void *list, const char *text)
     typedef int (*set_name)(void *, struct native_name *);
     struct native_name name;
     uint16_t n = 0;
-    /* The Search keyboard only produces ASCII letters, digits and spaces. Title-case
+    /* The rename keyboard produces ASCII letters, digits, symbols and spaces. Title-case
        here too: the first keystroke can reach the query without our hook. */
     for (; n < NAME_MAX && text[n]; n++) {
         char c = text[n];
@@ -403,6 +405,7 @@ PATCH_ARM void *cfw_search_construct(void *controller, void *arg)
     if (rename_pending) {
         rename_pending = 0;
         rename_controller = controller;
+        symbol_page = 0;
     } else {
         rename_reset();
     }
@@ -436,5 +439,115 @@ PATCH_ARM int cfw_search_menu_on_keyboard(void *controller, uint32_t argument)
         set_query(model, "", 0);
     /* playlist_rename.ui binds controller.CFW_RenameDone to PopTopScreen. */
     emit(controller, "CFW_RenameDone");
+    return 1;
+}
+
+/*
+ * Numbers and symbols for the rename keyboard. The letter strip gets a 27th key,
+ * "123", that switches the strip to digits and symbols (with "ABC" to switch
+ * back). Both pages have 27 keys and the switch key last, so the highlight stays
+ * on it when the page changes. Only the rename screen changes; Search keeps its
+ * stock A-Z keyboard.
+ */
+#define KEY_SWITCH 0x6fb0
+#define KEY_SYMBOL 0x6fb1
+#define PAGE_KEYS 27
+
+static const char *const symbols[] = {"-", "_", ".", ",", "'", "&", "!", "?",
+                                      "(", ")", "#", "@", "+", "/", ":", "$"};
+#define SYMBOLS ((int)(sizeof(symbols) / sizeof(symbols[0])))
+_Static_assert(10 + SYMBOLS + 1 == PAGE_KEYS, "Both keyboard pages have 27 keys");
+
+
+static int renaming(void)
+{
+    return rename_controller != NULL;
+}
+
+PATCH_ARM int cfw_key_list_count(void *keys)
+{
+    typedef int (*count)(void *);
+    return renaming() ? PAGE_KEYS : ((count)OSOS_KEY_LIST_COUNT)(keys);
+}
+
+PATCH_ARM uint32_t cfw_key_list_key(void *keys, int index)
+{
+    typedef uint32_t (*key)(void *, int);
+    if (!renaming())
+        return ((key)OSOS_KEY_LIST_KEY)(keys, index);
+    if (index < 0 || index >= PAGE_KEYS)
+        return 0;
+    if (index == PAGE_KEYS - 1)
+        return KEY_SWITCH;
+    if (!symbol_page)
+        return OSOS_KEY_LETTER_A + index;
+    return index < 10 ? OSOS_KEY_DIGIT_0 + index : KEY_SYMBOL + index - 10;
+}
+
+static const char *custom_key_text(uint32_t code)
+{
+    if (code == KEY_SWITCH)
+        return symbol_page ? "ABC" : "123";
+    if (code >= KEY_SYMBOL && code < KEY_SYMBOL + SYMBOLS)
+        return symbols[code - KEY_SYMBOL];
+    return NULL;
+}
+
+const char *cfw_key_text_original(uint32_t code);
+
+PATCH_ARM const char *cfw_key_text(uint32_t code)
+{
+    const char *text = custom_key_text(code);
+    return text ? text : cfw_key_text_original(code);
+}
+
+int cfw_key_label_original(void *self, uint32_t a, uint32_t code, const char **out);
+
+/* Key label provider: custom keys are not in its table, so answer them here the
+   way it answers digits (through its shared label string). */
+PATCH_ARM int cfw_key_label(void *self, uint32_t a, uint32_t code, const char **out)
+{
+    typedef void (*assign)(void *, const char *);
+    typedef const char *(*c_str)(void *);
+    const char *text = custom_key_text(code);
+    if (!text || !out)
+        return cfw_key_label_original(self, a, code, out);
+    void *label = (void *)OSOS_KEY_LABEL_STRING;
+    ((assign)OSOS_STRING_ASSIGN)(label, text);
+    *out = ((c_str)OSOS_STRING_C_STR)(label);
+    return 1;
+}
+
+int cfw_search_key_original(void *controller, void *event);
+
+/* Search key handler: switch pages, and type symbols, which Search does not know. */
+PATCH_ARM int cfw_search_key(void *controller, void *event)
+{
+    typedef void *(*cast)(void *, uint32_t);
+    if (!rename_controller || controller != rename_controller)
+        return cfw_search_key_original(controller, event);
+    uint8_t *key = ((cast)OSOS_INTERFACE_CAST)(event, OSOS_KEY_EVENT_INTERFACE);
+    uint32_t code = key ? *(uint32_t *)(key + 0xc) : 0;
+    const char *text = custom_key_text(code);
+    if (!text)
+        return cfw_search_key_original(controller, event);
+    if (*(uint32_t *)(key + 0x10) != OSOS_KEY_EVENT_UP)
+        return 1;
+    if (code == KEY_SWITCH) {
+        symbol_page = !symbol_page;
+        osos_ui_invalidate();
+        return 1;
+    }
+    void *model = search_model();
+    const char *query = model ? get_query(model) : NULL;
+    char next[NAME_MAX + 1];
+    uint32_t n = 0;
+    for (; query && query[n] && n < SAVED_UNITS; n++)
+        next[n] = query[n];
+    if (n < SAVED_UNITS)
+        next[n++] = text[0];
+    next[n] = 0;
+    if (model)
+        cfw_search_set_query(model, STR_TYPE, OSOS_SEARCH_QUERY_ID, next, n);
     return 1;
 }
