@@ -20,8 +20,10 @@ void cfw_playlist_seen(void *list);
 /* Hash of a playlist's own (pre-rename) name; 0 when it has none. */
 uint32_t cfw_playlist_name_hash(void *list);
 
-/* Diagnostics: the song list Add to Playlist was opened from. */
-extern void *cfw_debug_add_source;
+/* Add to Playlist from a song list: keep its library browser to put back when
+   that song list shows again. */
+void cfw_playlist_add_keep_browser(void *controller);
+
 /* Diagnostics: log a controller's library browser state. */
 void cfw_debug_browser(const char *tag, void *controller);
 

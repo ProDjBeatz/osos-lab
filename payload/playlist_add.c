@@ -716,7 +716,6 @@ static int coverflow_album = -1;
    (cfw_playlists_appear_category), instead of moving it to the Playlists
    category, which lost the album, artist or genre of the song list underneath. */
 uint32_t cfw_playlist_chooser_open;
-void *cfw_debug_add_source;
 
 void cfw_playlist_add_select(struct osos_media_item *item)
 {
@@ -774,6 +773,71 @@ PATCH_ARM int cfw_coverflow_appear(void *controller, int first)
     return result;
 }
 
+/* Every song list's library model drives one native media browser (model +0x40,
+   as the native On-The-Go add reads it). The album, artist or genre a song list
+   shows is kept there: seven text filters 0x200 apart from +0x2c (length, then
+   the text at +0x2e), ids at +0xe2c..+0xe34, the order flag at +0xe3c and the
+   lists at +0xf44/+0xf48. The playlist chooser is a Playlists screen and points
+   that browser at the playlists, so the song list it was opened from came back
+   listing every song. Keep the browser as it was and put it back on the return. */
+#define BROWSER_STATE_WORDS (0xf50 / 4)
+#define MODEL_NATIVE_BROWSER 0x40
+
+static uint32_t kept_browser[BROWSER_STATE_WORDS];
+static uint32_t *kept_browser_at;
+static void *kept_browser_for;
+
+static uint32_t *native_browser(void *controller)
+{
+    typedef void *(*get_model)(void *);
+    uint8_t *model = controller ? ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
+                                      (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER)
+                                : NULL;
+    return model ? *(uint32_t **)(model + MODEL_NATIVE_BROWSER) : NULL;
+}
+
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
+void cfw_playlist_add_keep_browser(void *controller)
+{
+    uint32_t *browser = native_browser(controller);
+    kept_browser_for = browser ? controller : NULL;
+    kept_browser_at = browser;
+    for (unsigned i = 0; browser && i < BROWSER_STATE_WORDS; i++)
+        kept_browser[i] = browser[i];
+    cfw_debug("keep browser", (uint32_t)(uintptr_t)controller, (uint32_t)(uintptr_t)browser);
+}
+
+/* Diagnostics: the words of the kept browser that differ now (at most 60). */
+static void debug_browser_changes(const char *tag)
+{
+    static const char hex[] = "0123456789abcdef";
+    uint32_t *browser = kept_browser_at;
+    cfw_debug(tag, (uint32_t)(uintptr_t)browser, 0);
+    if (!browser)
+        return;
+    unsigned shown = 0;
+    for (unsigned i = 0; i < BROWSER_STATE_WORDS && shown < 60; i++) {
+        if (browser[i] == kept_browser[i])
+            continue;
+        unsigned offset = i * 4;
+        char label[8] = {' ', '~', hex[(offset >> 8) & 15], hex[(offset >> 4) & 15],
+                         hex[offset & 15], 0, 0, 0};
+        cfw_debug(label, kept_browser[i], browser[i]);
+        shown++;
+    }
+    cfw_debug(" changed", shown, 0);
+}
+
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
+static void restore_browser(void *controller)
+{
+    uint32_t *browser = native_browser(controller);
+    if (!browser || browser != kept_browser_at)
+        return;
+    for (unsigned i = 0; i < BROWSER_STATE_WORDS; i++)
+        browser[i] = kept_browser[i];
+}
+
 static void emit(void *controller, const char *event)
 {
     typedef void *(*init)(void *, const char *, void *);
@@ -813,8 +877,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     if (cfw_string_equal(action, "CFW_AddToPlaylistCancel")) {
         /* playlist_add.ui closes the chooser after this. */
         if (argument != OSOS_ACTION_SUPPORT_QUERY) {
-            cfw_debug("cancel flag", cfw_playlist_chooser_open, 0);
-            cfw_debug_browser(" chooser", controller);
+            debug_browser_changes("cancel diff");
             pending = NULL;
             cfw_playlist_chooser_open = 0;
             restore_coverflow();
@@ -826,8 +889,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     if (argument == OSOS_ACTION_SUPPORT_QUERY)
         return 1;
     struct osos_media_entry *entry = pending;
-    cfw_debug("chosen flag", cfw_playlist_chooser_open, 0);
-    cfw_debug_browser(" chooser", controller);
+    debug_browser_changes("chosen diff");
     pending = NULL;
     cfw_playlist_chooser_open = 0;
     struct osos_media_list *list = entry ? chosen_list(controller) : NULL;
@@ -851,15 +913,12 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
 
 int cfw_songs_appear_original(void *controller, int first);
 
-/* Diagnostics: the song list Add to Playlist came from, as it shows again. */
 PATCH_ARM int cfw_songs_appear(void *controller, int first)
 {
-    if (controller && controller == cfw_debug_add_source) {
-        cfw_debug("appear", (uint32_t)first, 0);
-        cfw_debug_browser("!appear", controller);
+    if (controller && controller == kept_browser_for) {
+        kept_browser_for = NULL;
+        debug_browser_changes("!appear diff");
+        restore_browser(controller);
     }
-    int result = cfw_songs_appear_original(controller, first);
-    if (controller && controller == cfw_debug_add_source)
-        cfw_debug_browser("!appeared", controller);
-    return result;
+    return cfw_songs_appear_original(controller, first);
 }
