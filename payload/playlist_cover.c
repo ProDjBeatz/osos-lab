@@ -356,10 +356,14 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
 
 /* A Photos menu controller: the one Set Playlist Photo opened starts picking;
    any other one (Photos opened from the main menu) ends a pick left unfinished. */
+/* The Photos menu controller a pick started from (closed after the pick). */
+static void *pick_menu;
+
 static void *menu_claim(void *controller)
 {
     picking = pick_pending;
     pick_pending = 0;
+    pick_menu = picking ? controller : NULL;
     if (!picking)
         target_list = NULL;
     log_line("photos-menu", (uint32_t)picking, (uint32_t)(uintptr_t)controller);
@@ -408,7 +412,13 @@ PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
     int index = model ? *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT) : -1;
     int done = model && list && index >= 0 ? set_cover(list, index) : 0;
     log_line("picked", (uint32_t)index, (uint32_t)done);
-    /* playlist_cover.ui goes back to the Playlists list. */
+    /* Back to the Playlists list: playlist_cover.ui pops the photo screen on this
+       event, then the Photos menu on the same event from its controller (Photos
+       runs its own screen stack, so popping to the Playlists screen finds nothing). */
+    void *menu = pick_menu;
+    pick_menu = NULL;
     emit(controller, "CFW_PlaylistPhotoSet");
+    if (menu)
+        emit(menu, "CFW_PlaylistPhotoSet");
     return 1;
 }
