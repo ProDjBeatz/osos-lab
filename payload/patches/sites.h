@@ -259,3 +259,6 @@
 #define OSOS_PHOTOS_BROWSE_ACTION 0x081c105c
 #define OSOS_PHOTOS_BROWSE_ACTION_SLOT 0x089956d4
 #define OSOS_PHOTOS_BROWSE_SECONDARY_ACTION_SLOT 0x0899fe90
+/* Photos menu appear: image loader 0 (Photos) put to use for thumbnails. */
+#define OSOS_PHOTOS_IMAGE_LOADER 0x081ce7a0
+#define OSOS_PHOTOS_IMAGE_LOADER_USE 0x081cec2c

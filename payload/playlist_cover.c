@@ -310,6 +310,11 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
     pick_pending = target_list != NULL;
     pick_controller = NULL;
     void *model = ((model_get)OSOS_PHOTOS_BROWSE_MODEL_GET)();
+    /* As the Photos menu does when it appears: put the photo image loader to use
+       for Photos, or the grid's thumbnails stay blank. */
+    void *loader = ((void *(*)(int))OSOS_PHOTOS_IMAGE_LOADER)(0);
+    if (loader)
+        ((void (*)(void *, int))OSOS_PHOTOS_IMAGE_LOADER_USE)(loader, 0);
     if (model) {
         /* As the Photos menu does for All Photos: album 0, reload its photos (the
            menu's highlight does that; without it the grid can show 0 photos),
