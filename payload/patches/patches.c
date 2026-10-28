@@ -202,3 +202,12 @@ PATCH_JUMP(OSOS_KEY_TEXT, 0xe2400c6f, 0xe2400081, cfw_key_text);
 PATCH_JUMP(OSOS_KEY_LABEL, 0xe92d41f0, 0xe1a06000, cfw_key_label);
 /* push {r4-r10, lr}; mov r7, r0 */
 PATCH_JUMP(OSOS_SEARCH_KEY, 0xe92d47f0, 0xe1a07000, cfw_search_key);
+/* Playlist photos: covers on the Playlists list, and the Photos grid as picker. */
+PATCH_POINTER(OSOS_PLAYLISTS_PROPERTY_SLOT, OSOS_PLAYLISTS_PROPERTY, cfw_playlists_property);
+PATCH_POINTER(OSOS_PHOTOS_BROWSE_NEW_WORD, OSOS_PHOTOS_BROWSE_NEW, cfw_photo_browse_new);
+PATCH_POINTER(OSOS_PHOTOS_BROWSE_NEW_TRANSITION_WORD, OSOS_PHOTOS_BROWSE_NEW_TRANSITION,
+              cfw_photo_browse_new_transition);
+PATCH_POINTER(OSOS_PHOTOS_BROWSE_ACTION_SLOT, OSOS_PHOTOS_BROWSE_ACTION,
+              cfw_photo_browse_action);
+PATCH_POINTER(OSOS_PHOTOS_BROWSE_SECONDARY_ACTION_SLOT, OSOS_PHOTOS_BROWSE_ACTION,
+              cfw_photo_browse_action);

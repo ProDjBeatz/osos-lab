@@ -6,6 +6,7 @@
 #include "play_next.h"
 #include "playlist_rename.h"
 #include "playlist_add.h"
+#include "playlist_cover.h"
 
 int cfw_media_list_action_original(void *, const char *, uint32_t);
 
@@ -22,7 +23,8 @@ PATCH_ARM void cfw_selection_menu_cancel(struct osos_context_menu *menu, uint32_
 PATCH_ARM int cfw_media_list_action(void *controller, const char *action, uint32_t argument)
 {
     if (cfw_playlist_rename_action(controller, action, argument) ||
-        cfw_playlist_add_action(controller, action, argument))
+        cfw_playlist_add_action(controller, action, argument) ||
+        cfw_playlist_cover_action(controller, action, argument))
         return 1;
     int last = cfw_string_equal(action, "CFW_PlayLast");
     if (!last && !cfw_string_equal(action, "CFW_PlayNext"))

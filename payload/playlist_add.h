@@ -17,4 +17,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
 /* A playlist is being listed: apply saved changes still waiting for it. */
 void cfw_playlist_seen(void *list);
 
+/* Hash of a playlist's own (pre-rename) name; 0 when it has none. */
+uint32_t cfw_playlist_name_hash(void *list);
+
 #endif

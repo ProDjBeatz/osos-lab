@@ -250,6 +250,11 @@ static uint32_t own_name_hash(struct osos_media_list *list)
     return name[0] && hash ? hash : 0;
 }
 
+uint32_t cfw_playlist_name_hash(void *list)
+{
+    return own_name_hash(list);
+}
+
 static int saved_ids(struct osos_media_list *list, struct osos_media_record *record,
                      const uint32_t **playlist, uint32_t *name, const uint32_t **track)
 {

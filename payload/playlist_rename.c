@@ -27,6 +27,7 @@
 #include "playlist_rename.h"
 #include "playlist_rename_ui.h"
 #include "playlist_add.h"
+#include "playlist_cover.h"
 
 #define STR_TYPE 0x53747220u /* 'Str ' */
 #define NAME_MAX 255
@@ -356,12 +357,19 @@ PATCH_ARM int cfw_playlists_menu(void *controller, int row)
     return ((build)OSOS_PLAYLISTS_BUILD_MENU)(controller, row);
 }
 
-/* Replaces the Cancel append in the Playlists hold menu: Rename, then Cancel. */
+void *cfw_playlist_held(void)
+{
+    return playlist_at(menu_row);
+}
+
+/* Replaces the Cancel append in the Playlists hold menu: Rename, Set Playlist
+   Photo, then Cancel. */
 PATCH_ARM void cfw_playlists_menu_cancel(struct osos_context_menu *menu,
                                          uint32_t label, const char *action,
                                          uint32_t flags)
 {
     osos_context_menu_append(menu, CFW_RENAME_PLAYLIST, "CFW_RenamePlaylist", 1);
+    cfw_playlist_cover_menu(menu);
     osos_context_menu_append(menu, label, action, flags);
 }
 

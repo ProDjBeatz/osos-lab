@@ -72,6 +72,7 @@ def build_recipe(
                 "playlist_rename.ui",
                 "playlist_add.ui",
                 "coverflow_actions.ui",
+                "playlist_cover.ui",
             )
         ],
         directory,

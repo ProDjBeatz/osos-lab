@@ -1,0 +1,16 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<ui>
+  <string id="CFW_SET_PLAYLIST_PHOTO" text="Set Playlist Photo"/>
+  <!-- Hold Center on a playlist, choose Set Playlist Photo: remember the playlist,
+       then open the Photos grid (All Photos). -->
+  <screen-event screen="MediaLists_Playlists_Screen"
+                event="contextualMenu.CFW_SetPlaylistPhoto"
+                handler="CFW_SetPlaylistPhoto"
+                action="navigator.PushScreen"
+                arguments="PhotoBrowse_Screen, PhotoBrowse_Small"/>
+  <!-- Center on a photo sets the cover (cfw_photo_browse_action), then this closes
+       the grid. -->
+  <screen-event screen="PhotoBrowse_Screen"
+                event="controller.CFW_PlaylistPhotoSet"
+                action="navigator.PopTopScreen"/>
+</ui>

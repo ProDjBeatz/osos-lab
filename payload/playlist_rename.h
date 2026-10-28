@@ -16,4 +16,7 @@ void cfw_playlist_names_reconcile(int (*exists)(const uint32_t *id));
 /* A playlist's own name before any rename here (length-prefixed UTF-16). */
 void cfw_playlist_own_name(void *list, uint16_t *name, uint16_t limit);
 
+/* Playlist whose hold menu was opened last; NULL if none. */
+void *cfw_playlist_held(void);
+
 #endif

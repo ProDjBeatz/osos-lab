@@ -234,3 +234,27 @@
 #define OSOS_SEARCH_KEY_RESUME 0x08125e9c
 #define OSOS_KEY_EVENT_INTERFACE 0x7100
 #define OSOS_KEY_EVENT_UP 0x4b425550 /* 'KBUP' */
+
+/* Playlist photos. Playlists model property getter (row icons: 'Draw') and the
+   row -> playlist index map it uses before OSOS_PLAYLISTS_ROW_ITEM. */
+#define OSOS_PLAYLISTS_PROPERTY 0x0816a04c
+#define OSOS_PLAYLISTS_PROPERTY_SLOT 0x08990cdc
+#define OSOS_PLAYLISTS_MAP_ROW 0x0816d23c
+/* Bitmap object: drawn rect (top, left, bottom, right). */
+#define OSOS_BITMAP_RECT 0x98
+/* Photos browse model (singleton): album, grid mode, select, current index, and
+   the image of a photo (pixels, size, stride, format) at a size class. */
+#define OSOS_PHOTOS_BROWSE_MODEL_GET 0x081c165c
+#define OSOS_PHOTOS_BROWSE_SET_ALBUM 0x081c16a0
+#define OSOS_PHOTOS_BROWSE_SMALL 0x081c2488
+#define OSOS_PHOTOS_BROWSE_SELECT 0x081c2064
+#define OSOS_PHOTOS_BROWSE_CURRENT 0x8b8
+#define OSOS_PHOTOS_BROWSE_IMAGE 0x081c1724
+/* TPhotosBrowseCntlr: registry factories and action dispatcher. */
+#define OSOS_PHOTOS_BROWSE_NEW 0x081c1310
+#define OSOS_PHOTOS_BROWSE_NEW_WORD 0x080f8a84
+#define OSOS_PHOTOS_BROWSE_NEW_TRANSITION 0x081c1494
+#define OSOS_PHOTOS_BROWSE_NEW_TRANSITION_WORD 0x080f8a80
+#define OSOS_PHOTOS_BROWSE_ACTION 0x081c105c
+#define OSOS_PHOTOS_BROWSE_ACTION_SLOT 0x089956d4
+#define OSOS_PHOTOS_BROWSE_SECONDARY_ACTION_SLOT 0x0899fe90
