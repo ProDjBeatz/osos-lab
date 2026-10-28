@@ -318,11 +318,25 @@ static struct osos_media_entry *entry_for_track(struct osos_media_list *list,
 
 /* Native playlist item delete ('dpli'), then the playlist-changed notice ('cpld')
    and a recount, as the list reference's remove-row routine (0x0827a8c8) does. */
+/* Order modes a list caches sorted indexes for (OSOS_MEDIA_LIST_INVALIDATE_ORDER
+   takes 1..48). */
+#define ORDER_MODES 49
+
 static void delete_entry(struct osos_media_list *list, struct osos_media_entry *entry)
 {
     typedef int (*delete_item)(struct osos_media_entry *);
     typedef void (*changed)(struct osos_media_list *);
+    void *db = osos_list_database(list);
+    /* As Play Next changes a list: inside a database update. */
+    osos_database_begin_update(db);
     ((delete_item)OSOS_PLAYLIST_ITEM_DELETE)(entry);
+    /* The song list reads the playlist through its cached sorted indexes; one
+       left built for the old songs ended the list early after a removal (the
+       songs below seemed gone until the playlist was opened again). Drop them all
+       so each is rebuilt from the songs that are left. */
+    for (unsigned mode = 1; mode < ORDER_MODES; mode++)
+        osos_media_list_invalidate_order(list, mode);
+    osos_database_end_update(db);
     ((changed)OSOS_PLAYLIST_CHANGED)(list);
     *((volatile uint8_t *)list + OSOS_LIST_COUNTS_STALE) = 1;
 }
