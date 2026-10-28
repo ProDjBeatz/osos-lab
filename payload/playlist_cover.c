@@ -62,10 +62,8 @@ struct playlist_ref {
 
 /* Playlist waiting for a photo; NULL when not choosing one. */
 static void *target_list;
-/* Set by Set Playlist Photo until the Photos browse controller it opens exists. */
+/* Set by Set Playlist Photo until the Photos menu it opens exists. */
 static int pick_pending;
-/* That Photos browse controller; the normal Photos app is left alone. */
-static void *pick_controller;
 
 static const uint32_t *list_id(void *list)
 {
@@ -213,6 +211,8 @@ static int make_cover(const struct photo_image *image, struct cover_bitmap *bitm
     return 1;
 }
 
+static void log_line(const char *what, uint32_t a, uint32_t b);
+
 static struct cover_bitmap scratch;
 
 __attribute__((optimize("no-tree-loop-distribute-patterns")))
@@ -220,8 +220,18 @@ static int set_cover(void *list, int index)
 {
     struct photo_image image;
     /* The large (full screen) image first; the grid thumbnail if that fails. */
-    if ((!photo_image(index, 3, &image) || !make_cover(&image, &scratch)) &&
-        (!photo_image(index, 0, &image) || !make_cover(&image, &scratch)))
+    int made = 0;
+    for (int size_class = 3; !made && size_class >= 0; size_class -= 3) {
+        int found = photo_image(index, size_class, &image);
+        log_line(found ? "image" : "no-image", (uint32_t)size_class,
+                 found ? (uint32_t)image.format : 0);
+        if (!found)
+            continue;
+        log_line("size", (uint32_t)image.width << 16 | (uint32_t)image.height,
+                 (uint32_t)image.stride);
+        made = make_cover(&image, &scratch);
+    }
+    if (!made)
         return 0;
     struct cover *cover = find_cover(list);
     if (!cover) {
@@ -296,11 +306,41 @@ void cfw_playlist_cover_menu(struct osos_context_menu *menu)
     osos_context_menu_append(menu, CFW_SET_PLAYLIST_PHOTO, "CFW_SetPlaylistPhoto", 1);
 }
 
+/* Picker log (iPod_Control\Device\CFWDebugPhoto): the last events of a pick,
+   so a failed one can be read back from the disk. */
+static struct {
+    uint32_t magic, count;
+    char lines[30][32];
+} photo_log;
+static const struct osos_path photo_log_path = {0, "iPod_Control\\Device\\CFWDebugPhoto"};
+
+static void log_line(const char *what, uint32_t a, uint32_t b)
+{
+    static const char hex[] = "0123456789abcdef";
+    char *line = photo_log.lines[photo_log.count % 30];
+    int n = 0;
+    for (; what[n] && n < 13; n++)
+        line[n] = what[n];
+    const uint32_t values[2] = {a, b};
+    for (int v = 0; v < 2; v++) {
+        line[n++] = ' ';
+        for (int shift = 28; shift >= 0; shift -= 4)
+            line[n++] = hex[(values[v] >> shift) & 15];
+    }
+    while (n < 31)
+        line[n++] = ' ';
+    line[31] = '\n';
+    photo_log.magic = 0x47474f4c;
+    photo_log.count++;
+    cfw_preferences_write(&photo_log_path, &photo_log, sizeof(photo_log));
+}
+
+/* Playlist waiting for a photo while picking; picking ends with a pick or when
+   Photos is next opened some other way. */
+static int picking;
+
 int cfw_playlist_cover_action(void *controller, const char *action, uint32_t argument)
 {
-    typedef void *(*model_get)(void);
-    typedef void (*model_int)(void *, int);
-    typedef void (*model_void)(void *);
     (void)controller;
     if (!cfw_string_equal(action, "CFW_SetPlaylistPhoto"))
         return 0;
@@ -308,70 +348,67 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
         return 1;
     target_list = cfw_playlist_held();
     pick_pending = target_list != NULL;
-    pick_controller = NULL;
-    void *model = ((model_get)OSOS_PHOTOS_BROWSE_MODEL_GET)();
-    /* As the Photos menu does when it appears: put the photo image loader to use
-       for Photos, or the grid's thumbnails stay blank. */
-    void *loader = ((void *(*)(int))OSOS_PHOTOS_IMAGE_LOADER)(0);
-    if (loader)
-        ((void (*)(void *, int))OSOS_PHOTOS_IMAGE_LOADER_USE)(loader, 0);
-    if (model) {
-        /* As the Photos menu does for All Photos: album 0, reload its photos (the
-           menu's highlight does that; without it the grid can show 0 photos),
-           grid, first photo. */
-        ((model_int)OSOS_PHOTOS_BROWSE_SET_ALBUM)(model, 0);
-        ((model_void)OSOS_PHOTOS_BROWSE_RELOAD)(model);
-        ((model_void)OSOS_PHOTOS_BROWSE_SMALL)(model);
-        ((model_int)OSOS_PHOTOS_BROWSE_SELECT)(model, 0);
-    }
-    /* playlist_cover.ui then pushes the Photos grid. */
+    picking = 0;
+    log_line("set-photo", (uint32_t)(uintptr_t)target_list, 0);
+    /* playlist_cover.ui then opens Photos, as the main menu does. */
     return 1;
 }
 
-static void *claim(void *controller)
+/* A Photos menu controller: the one Set Playlist Photo opened starts picking;
+   any other one (Photos opened from the main menu) ends a pick left unfinished. */
+static void *menu_claim(void *controller)
 {
-    if (pick_pending) {
-        pick_pending = 0;
-        pick_controller = controller;
-    } else {
-        pick_controller = NULL;
+    picking = pick_pending;
+    pick_pending = 0;
+    if (!picking)
         target_list = NULL;
-    }
+    log_line("photos-menu", (uint32_t)picking, (uint32_t)(uintptr_t)controller);
     return controller;
 }
 
-/* Photos browse controller factories (screen controller registry). */
-PATCH_ARM void *cfw_photo_browse_new(void *arg)
+PATCH_ARM void *cfw_photos_menu_new(void *arg)
 {
     typedef void *(*make)(void *);
-    return claim(((make)OSOS_PHOTOS_BROWSE_NEW)(arg));
+    return menu_claim(((make)OSOS_PHOTOS_MENU_NEW)(arg));
 }
 
-PATCH_ARM void *cfw_photo_browse_new_transition(void *a, void *b, void *c, void *d)
+PATCH_ARM void *cfw_photos_menu_new_transition(void *a, void *b, void *c, void *d)
 {
     typedef void *(*make)(void *, void *, void *, void *);
-    return claim(((make)OSOS_PHOTOS_BROWSE_NEW_TRANSITION)(a, b, c, d));
+    return menu_claim(((make)OSOS_PHOTOS_MENU_NEW_TRANSITION)(a, b, c, d));
 }
 
-/* TPhotosBrowseCntlr actions: while choosing, Center takes the photo. */
+/* TPhotosBrowseCntlr actions: while picking, Center takes the photo. */
 PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
                                       uint32_t argument)
 {
     typedef int (*dispatch)(void *, const char *, uint32_t);
     typedef void *(*model_get)(void);
-    if (!pick_controller || controller != pick_controller ||
-        (!cfw_string_equal(action, "HandleBrowseLarge") &&
-         !cfw_string_equal(action, "HandleBrowseSlideshow")))
+    int take = picking && target_list && argument != OSOS_ACTION_SUPPORT_QUERY &&
+               (cfw_string_equal(action, "HandleBrowseLarge") ||
+                cfw_string_equal(action, "HandleBrowseSlideshow"));
+    if (picking && argument != OSOS_ACTION_SUPPORT_QUERY) {
+        const char *short_name = action;
+        if (action[0] == 'H' && action[1] == 'a' && action[2] == 'n' && action[3] == 'd' &&
+            action[4] == 'l' && action[5] == 'e' && action[6])
+            short_name = action + 6;
+        char name[14];
+        int n = 0;
+        for (; short_name[n] && n < 13; n++)
+            name[n] = short_name[n];
+        name[n] = 0;
+        log_line(name, (uint32_t)(uintptr_t)controller, take);
+    }
+    if (!take)
         return ((dispatch)OSOS_PHOTOS_BROWSE_ACTION)(controller, action, argument);
-    if (argument == OSOS_ACTION_SUPPORT_QUERY)
-        return 1;
     uint8_t *model = ((model_get)OSOS_PHOTOS_BROWSE_MODEL_GET)();
     void *list = target_list;
     target_list = NULL;
-    pick_controller = NULL;
-    if (model && list)
-        set_cover(list, *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT));
-    /* playlist_cover.ui closes the grid. */
+    picking = 0;
+    int index = model ? *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT) : -1;
+    int done = model && list && index >= 0 ? set_cover(list, index) : 0;
+    log_line("picked", (uint32_t)index, (uint32_t)done);
+    /* playlist_cover.ui goes back to the Playlists list. */
     emit(controller, "CFW_PlaylistPhotoSet");
     return 1;
 }
