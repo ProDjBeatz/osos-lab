@@ -617,9 +617,20 @@ static void reload_song_list(void)
        controller's playlist reference again, then the Playlists model refreshes. */
     void *model = ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
         (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER);
-    if (model)
-        ((set_current)osos_method(model, OSOS_BROWSER_SET_CURRENT_LIST_REF))(
-            model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
+    if (model) {
+        typedef void (*ref_init)(struct playlist_ref *, void *, int);
+        typedef void (*ref_destroy)(struct playlist_ref *);
+        set_current set = (set_current)osos_method(model, OSOS_BROWSER_SET_CURRENT_LIST_REF);
+        /* Point the browser at no list first: given the same list again it keeps
+           its place in it, which can be the removed song, and the rows after
+           that place came out empty (the songs below seemed gone and the list
+           would not scroll past them until the playlist was opened again). */
+        struct playlist_ref none;
+        ((ref_init)OSOS_LIST_REF_INIT)(&none, NULL, 0);
+        set(model, &none);
+        ((ref_destroy)OSOS_LIST_REF_DESTROY)(&none);
+        set(model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
+    }
     void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
     if (playlists)
         ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
