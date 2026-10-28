@@ -268,3 +268,7 @@
 /* Controller_ExecuteNavigatorAction and its call in the screen event handler. */
 #define OSOS_NAVIGATOR_EXECUTE_ACTION 0x08129998
 #define OSOS_NAVIGATOR_EXECUTE_ACTION_CALL 0x08129f20
+/* TSilverMediaListCntlr_Playlists appear: browser->+0x5c(Playlists category). */
+#define OSOS_PLAYLISTS_APPEAR_CATEGORY 0x08228dd4
+#define OSOS_PLAYLISTS_APPEAR_CATEGORY_RESUME 0x08228ddc
+#define OSOS_PLAYLISTS_APPEAR_CATEGORY_SKIP 0x08228de4

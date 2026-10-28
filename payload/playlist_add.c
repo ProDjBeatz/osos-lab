@@ -661,10 +661,17 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
 /* Cover Flow album whose backside the song came from; -1 for other screens. */
 static int coverflow_album = -1;
 
+/* Set while the Add to Playlist chooser is open: its Playlists controller then
+   leaves the shared library browser alone when it appears
+   (cfw_playlists_appear_category), instead of moving it to the Playlists
+   category, which lost the album, artist or genre of the song list underneath. */
+uint32_t cfw_playlist_chooser_open;
+
 void cfw_playlist_add_select(struct osos_media_item *item)
 {
     pending = item ? osos_media_item_entry(item) : NULL;
     coverflow_album = -1;
+    cfw_playlist_chooser_open = 1;
 }
 
 void cfw_playlist_add_from_coverflow(int album)
@@ -756,6 +763,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
         /* playlist_add.ui closes the chooser after this. */
         if (argument != OSOS_ACTION_SUPPORT_QUERY) {
             pending = NULL;
+            cfw_playlist_chooser_open = 0;
             restore_coverflow();
         }
         return 1;
@@ -766,6 +774,7 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
         return 1;
     struct osos_media_entry *entry = pending;
     pending = NULL;
+    cfw_playlist_chooser_open = 0;
     struct osos_media_list *list = entry ? chosen_list(controller) : NULL;
     if (list) {
         struct osos_player *player = osos_player_get();

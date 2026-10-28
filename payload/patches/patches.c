@@ -213,3 +213,6 @@ PATCH_POINTER(OSOS_PHOTOS_BROWSE_SECONDARY_ACTION_SLOT, OSOS_PHOTOS_BROWSE_ACTIO
               cfw_photo_browse_action);
 PATCH_CALL(OSOS_NAVIGATOR_EXECUTE_ACTION_CALL, OSOS_NAVIGATOR_EXECUTE_ACTION,
            cfw_navigator_action);
+/* Add to Playlist chooser: leave the library browser where the song list was. */
+PATCH_JUMP(OSOS_PLAYLISTS_APPEAR_CATEGORY, 0xe3a02000, 0xe591305c,
+           cfw_playlists_appear_category);
