@@ -416,7 +416,8 @@ PATCH_ARM void cfw_navigator_action(void *controller, const char **action, void 
             if (name[0] == 'n' && name[9] == '.')
                 name += 10;
             cfw_debug(name, (uint32_t)(uintptr_t)controller, 0);
-            cfw_debug_browser(" song list", cfw_debug_add_source);
+            cfw_debug_browser(controller == cfw_debug_add_source ? "!song list" : " song list",
+                              cfw_debug_add_source);
             if (controller == cfw_debug_add_source)
                 cfw_debug_add_source = NULL;
         }

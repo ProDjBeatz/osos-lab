@@ -57,7 +57,7 @@ static int song_action(void *controller, enum song_source source,
             struct osos_media_item item;
             /* Diagnostics; only song list controllers keep a library browser. */
             if (source == SONG_LIST || source == PLAYLIST) {
-                cfw_debug_browser("add from", controller);
+                cfw_debug_browser("!add from", controller);
                 cfw_debug_add_source = controller;
             }
             cfw_playlist_add_select(selected_item(controller, source, &item) ? &item

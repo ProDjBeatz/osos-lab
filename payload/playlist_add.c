@@ -537,6 +537,8 @@ void cfw_debug_browser(const char *tag, void *controller)
     cfw_debug(tag, (uint32_t)(uintptr_t)controller, (uint32_t)(uintptr_t)model);
     if (!model)
         return;
+    if (tag[0] == '!')
+        cfw_debug_dump(" browser", model, 0x180);
     struct playlist_ref ref;
     ((ref_init)OSOS_LIST_REF_INIT)(&ref, NULL, 0);
     ((current)osos_method(model, OSOS_BROWSER_CURRENT_LIST_REF))(model, &ref);
@@ -625,6 +627,11 @@ static void reload_song_list(void)
        took the removed one's place (or the new last song). */
     int count = root ? root->tracks : 0;
     cfw_debug("reloaded", (uint32_t)count, (uint32_t)row);
+    cfw_debug_dump(" listview", current_list_view(), 0x200);
+    {
+        typedef void *(*get)(void);
+        cfw_debug_dump(" listui", ((get)OSOS_LIST_VIEW_MODEL)(), 0x80);
+    }
     cfw_debug_browser(" shown", controller);
     if (row >= count)
         row = count - 1;
@@ -674,6 +681,7 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     cfw_debug("remove", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
     cfw_debug(" row", (uint32_t)row, (uint32_t)(uintptr_t)controller);
     cfw_debug_browser(" shown", controller);
+    cfw_debug_dump(" lv before", view, 0x200);
     delete_entry(list, entry);
     cfw_debug(" after", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
     forget(list, record);
