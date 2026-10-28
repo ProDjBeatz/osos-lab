@@ -9,13 +9,4 @@
                 handler="CFW_SetPlaylistPhoto"
                 action="navigator.PushScreen"
                 arguments="Photos_Screen, Photos_Menu"/>
-  <!-- Center on a photo sets the cover (cfw_photo_browse_action), which then sends
-       this event from the photo screen and from the Photos menu: each closes its
-       screen, landing back on the Playlists list. -->
-  <screen-event screen="PhotoBrowse_Screen"
-                event="controller.CFW_PlaylistPhotoSet"
-                action="navigator.PopTopScreen"/>
-  <screen-event screen="Photos_Screen"
-                event="controller.CFW_PlaylistPhotoSet"
-                action="navigator.PopTopScreen"/>
 </ui>

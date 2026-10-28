@@ -289,17 +289,6 @@ PATCH_ARM int cfw_playlists_property(void *model, uint32_t key, uint32_t part, i
 
 /* ---- Choosing the photo ---- */
 
-static void emit(void *controller, const char *event)
-{
-    typedef void *(*init)(void *, const char *, void *);
-    typedef void (*destroy)(void *);
-    typedef void (*navigate)(void *, void *);
-    uint32_t name[2], scratch[2];
-    ((init)OSOS_CPP_STRING_INIT)(name, event, scratch);
-    ((navigate)osos_method(controller, OSOS_CONTROLLER_EMIT_EVENT))(controller, name);
-    ((destroy)OSOS_CPP_STRING_DESTROY)(name);
-}
-
 /* Playlists hold menu: Set Playlist Photo. */
 void cfw_playlist_cover_menu(struct osos_context_menu *menu)
 {
@@ -356,14 +345,10 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
 
 /* A Photos menu controller: the one Set Playlist Photo opened starts picking;
    any other one (Photos opened from the main menu) ends a pick left unfinished. */
-/* The Photos menu controller a pick started from (closed after the pick). */
-static void *pick_menu;
-
 static void *menu_claim(void *controller)
 {
     picking = pick_pending;
     pick_pending = 0;
-    pick_menu = picking ? controller : NULL;
     if (!picking)
         target_list = NULL;
     log_line("photos-menu", (uint32_t)picking, (uint32_t)(uintptr_t)controller);
@@ -412,13 +397,11 @@ PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
     int index = model ? *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT) : -1;
     int done = model && list && index >= 0 ? set_cover(list, index) : 0;
     log_line("picked", (uint32_t)index, (uint32_t)done);
-    /* Back to the Playlists list: playlist_cover.ui pops the photo screen on this
-       event, then the Photos menu on the same event from its controller (Photos
-       runs its own screen stack, so popping to the Playlists screen finds nothing). */
-    void *menu = pick_menu;
-    pick_menu = NULL;
-    emit(controller, "CFW_PlaylistPhotoSet");
-    if (menu)
-        emit(menu, "CFW_PlaylistPhotoSet");
+    /* Back to the Playlists list: close the photo screen, then the Photos menu,
+       as Menu does (navigator.PopTopScreen). The Photos controllers drop
+       controller.* events, so this cannot go through playlist_cover.ui. */
+    (void)controller;
+    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
+    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
     return 1;
 }

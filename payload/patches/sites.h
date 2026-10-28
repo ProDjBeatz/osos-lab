@@ -262,3 +262,6 @@
 /* Photos menu appear: image loader 0 (Photos) put to use for thumbnails. */
 #define OSOS_PHOTOS_IMAGE_LOADER 0x081ce7a0
 #define OSOS_PHOTOS_IMAGE_LOADER_USE 0x081cec2c
+/* navigator.PopTopScreen (Controller_ExecuteNavigatorAction): pop the top screen. */
+#define OSOS_NAVIGATOR_POP_TOP 0x082896b8
+#define OSOS_NAVIGATOR_POP_FLAGS 16
