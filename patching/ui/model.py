@@ -51,6 +51,18 @@ class ScreenClone:
 
 
 @dataclass
+class ListStyle:
+    """Restyle a stock list row (ITEM): the row kind of another ITEM, with its
+    text and image slots fed from the given model properties."""
+
+    item: str | int
+    like: str | int
+    # (slot, property) pairs, read from the row's list model.
+    sources: tuple[tuple[int, int], ...]
+    model: int = 0x7800
+
+
+@dataclass
 class Document:
     root: Item | None
     values: dict[str, Values]
@@ -61,6 +73,7 @@ class Document:
     strings: dict[str, str] = field(default_factory=dict)
     events: list[ScreenEvent] = field(default_factory=list)
     clones: list[ScreenClone] = field(default_factory=list)
+    list_styles: list[ListStyle] = field(default_factory=list)
     music_entry: dict[str, str] | None = None
     preview: str = ""
     preview_image: str = ""

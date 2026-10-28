@@ -202,6 +202,36 @@ class Resources:
             raise ValueError(f"Cannot replace missing UI resource {key}")
         self.added[key] = Resource(data)
 
+    def restyle_list_item(self, style):
+        """Replace a stock list row (ITEM) with another row kind's ITEM whose
+        sources (SORC) read the given model properties into its slots."""
+        item = self.native(style.item)
+        like = Resource(self.stock("ITEM", style.like))
+        sources = None
+        for offset in range(0, len(like) - 3, 4):
+            value = word(like, offset)
+            if 0x100 <= value < 0x10000 and ("SORC", value) in self.original:
+                self.original["SORC", value]  # record it in the UI metadata
+                sources = offset
+                break
+        if sources is None:
+            raise ValueError("List style row has no sources")
+        source_id = self.allocate()
+        self.add(
+            "SORC",
+            source_id,
+            pack_blocks(
+                [
+                    (0x534F5243, struct.pack("<III", style.model, prop, slot))
+                    for slot, prop in style.sources
+                ]
+            ),
+        )
+        put(like, sources, source_id)
+        if len(like) != len(self.original["ITEM", item]):
+            raise ValueError("List style rows differ in size")
+        self.replace("ITEM", item, like)
+
     def bind_screen_event(self, binding):
         encoded = serialized_string(binding.event) + b"1" + serialized_string(binding.handler)
         if binding.action:

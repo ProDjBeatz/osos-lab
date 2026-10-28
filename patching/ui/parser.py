@@ -5,7 +5,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .model import Document, Item, ScreenClone, ScreenEvent, Values
+from .model import Document, Item, ListStyle, ScreenClone, ScreenEvent, Values
 
 
 def attributes(node, required="", optional="", children=()):
@@ -75,6 +75,7 @@ class Parser:
                 "string",
                 "screen-event",
                 "screen-clone",
+                "list-style",
                 "music-entry",
                 "bitmap",
             ),
@@ -159,6 +160,24 @@ class Parser:
                     resource_reference(node.attrib["views-from"])
                     if "views-from" in node.attrib
                     else "",
+                )
+            )
+        elif node.tag == "list-style":
+            attributes(node, "item like sources", "model")
+            sources = []
+            for pair in node.attrib["sources"].split():
+                slot, _, prop = pair.partition("=")
+                if not prop:
+                    raise ValueError("List style sources are slot=property pairs")
+                sources.append((int(slot, 0), int(prop, 0)))
+            if not sources:
+                raise ValueError("List style needs at least one source")
+            document.list_styles.append(
+                ListStyle(
+                    resource_reference(node.attrib["item"]),
+                    resource_reference(node.attrib["like"]),
+                    tuple(sources),
+                    int(node.get("model", "0x7800"), 0),
                 )
             )
         elif node.tag == "music-entry":

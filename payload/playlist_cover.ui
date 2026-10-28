@@ -9,4 +9,9 @@
                 handler="CFW_SetPlaylistPhoto"
                 action="navigator.PushScreen"
                 arguments="Photos_Screen, Photos_Menu"/>
+  <!-- Playlists rows (ITEM 0x2e, also the Add to Playlist chooser's) drawn as the
+       artwork row of Songs (ITEM 0x20): a larger image slot with the text moved
+       over. Name in slot 1, song count in slot 8, the icon or cover in 19 and 20
+       (normal and highlighted), all from the Playlists model. -->
+  <list-style item="0x2e" like="0x20" sources="1=0x781c 8=0x7821 19=0x781d 20=0x781e"/>
 </ui>

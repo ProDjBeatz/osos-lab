@@ -23,9 +23,9 @@
 #include "playlist_cover_ui.h"
 
 #define COVERS_MAGIC 0x50574643u /* "CFWP" */
-#define COVERS_VERSION 1
-#define COVERS_MAX 32
-#define COVER_SIZE 24
+#define COVERS_VERSION 2
+#define COVERS_MAX 24
+#define COVER_SIZE 40
 #define COVER_BYTES (COVER_SIZE * COVER_SIZE * 4)
 
 /* A native BMap resource: 28-byte header, then 32-bit pixels (B, G, R, A). */

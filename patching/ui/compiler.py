@@ -404,6 +404,8 @@ def compile_document(resources, document, text=""):
         )
     for binding in document.events:
         resources.bind_screen_event(binding)
+    for style in document.list_styles:
+        resources.restyle_list_item(style)
     builder = None
     if document.root:
         builder = DocumentCompiler(resources, document)
