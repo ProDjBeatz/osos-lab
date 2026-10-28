@@ -265,3 +265,6 @@
 /* navigator.PopTopScreen (Controller_ExecuteNavigatorAction): pop the top screen. */
 #define OSOS_NAVIGATOR_POP_TOP 0x082896b8
 #define OSOS_NAVIGATOR_POP_FLAGS 16
+/* Controller_ExecuteNavigatorAction and its call in the screen event handler. */
+#define OSOS_NAVIGATOR_EXECUTE_ACTION 0x08129998
+#define OSOS_NAVIGATOR_EXECUTE_ACTION_CALL 0x08129f20

@@ -295,6 +295,8 @@ void cfw_playlist_cover_menu(struct osos_context_menu *menu)
     osos_context_menu_append(menu, CFW_SET_PLAYLIST_PHOTO, "CFW_SetPlaylistPhoto", 1);
 }
 
+static void *returning;
+
 /* Picker log (iPod_Control\Device\CFWDebugPhoto): the last events of a pick,
    so a failed one can be read back from the disk. */
 static struct {
@@ -347,6 +349,7 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
    any other one (Photos opened from the main menu) ends a pick left unfinished. */
 static void *menu_claim(void *controller)
 {
+    returning = NULL;
     picking = pick_pending;
     pick_pending = 0;
     if (!picking)
@@ -367,27 +370,19 @@ PATCH_ARM void *cfw_photos_menu_new_transition(void *a, void *b, void *c, void *
     return menu_claim(((make)OSOS_PHOTOS_MENU_NEW_TRANSITION)(a, b, c, d));
 }
 
-/* TPhotosBrowseCntlr actions: while picking, Center takes the photo. */
+/* Photos browse controller that just took a photo: its grid's Center event then
+   pushes the full-size photo screen (PhotoBrowse_Template_Small), which
+   cfw_navigator_action turns into the way back to the Playlists list (declared
+   above). */
+
+/* TPhotosBrowseCntlr actions: while picking, Center in the grid takes the photo. */
 PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
                                       uint32_t argument)
 {
     typedef int (*dispatch)(void *, const char *, uint32_t);
     typedef void *(*model_get)(void);
     int take = picking && target_list && argument != OSOS_ACTION_SUPPORT_QUERY &&
-               (cfw_string_equal(action, "HandleBrowseLarge") ||
-                cfw_string_equal(action, "HandleBrowseSlideshow"));
-    if (picking && argument != OSOS_ACTION_SUPPORT_QUERY) {
-        const char *short_name = action;
-        if (action[0] == 'H' && action[1] == 'a' && action[2] == 'n' && action[3] == 'd' &&
-            action[4] == 'l' && action[5] == 'e' && action[6])
-            short_name = action + 6;
-        char name[14];
-        int n = 0;
-        for (; short_name[n] && n < 13; n++)
-            name[n] = short_name[n];
-        name[n] = 0;
-        log_line(name, (uint32_t)(uintptr_t)controller, take);
-    }
+               cfw_string_equal(action, "HandleBrowseLarge");
     if (!take)
         return ((dispatch)OSOS_PHOTOS_BROWSE_ACTION)(controller, action, argument);
     uint8_t *model = ((model_get)OSOS_PHOTOS_BROWSE_MODEL_GET)();
@@ -397,11 +392,27 @@ PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
     int index = model ? *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT) : -1;
     int done = model && list && index >= 0 ? set_cover(list, index) : 0;
     log_line("picked", (uint32_t)index, (uint32_t)done);
-    /* Back to the Playlists list: close the photo screen, then the Photos menu,
-       as Menu does (navigator.PopTopScreen). The Photos controllers drop
-       controller.* events, so this cannot go through playlist_cover.ui. */
-    (void)controller;
-    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
-    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
+    returning = controller;
     return 1;
+}
+
+/* A screen event's navigator actions run one by one through
+   Controller_ExecuteNavigatorAction(controller, action, argument, stop); action
+   starts with its name. After a pick, the grid's push of the full-size photo
+   becomes two pops instead (photo grid, then Photos menu), each as
+   navigator.PopTopScreen does it, and stop ends that event's actions. */
+PATCH_ARM void cfw_navigator_action(void *controller, const char **action, void *argument,
+                                    uint8_t *stop)
+{
+    typedef void (*execute)(void *, const char **, void *, uint8_t *);
+    if (!returning || controller != returning || !action || !*action ||
+        !cfw_string_equal(*action, "navigator.PushScreen")) {
+        ((execute)OSOS_NAVIGATOR_EXECUTE_ACTION)(controller, action, argument, stop);
+        return;
+    }
+    returning = NULL;
+    *stop = 1;
+    log_line("return", 0, 0);
+    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
+    ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
 }
