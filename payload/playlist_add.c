@@ -837,3 +837,18 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     emit(controller, "CFW_AddedToPlaylist");
     return 1;
 }
+
+int cfw_songs_appear_original(void *controller, int first);
+
+/* Diagnostics: the song list Add to Playlist came from, as it shows again. */
+PATCH_ARM int cfw_songs_appear(void *controller, int first)
+{
+    if (controller && controller == cfw_debug_add_source) {
+        cfw_debug("appear", (uint32_t)first, 0);
+        cfw_debug_browser("!appear", controller);
+    }
+    int result = cfw_songs_appear_original(controller, first);
+    if (controller && controller == cfw_debug_add_source)
+        cfw_debug_browser("!appeared", controller);
+    return result;
+}

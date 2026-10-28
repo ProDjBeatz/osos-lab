@@ -30,3 +30,12 @@ cfw_playlists_appear_category:
     ldr r3, [r1, #0x5c]
     ldr pc, =OSOS_PLAYLISTS_APPEAR_CATEGORY_RESUME
 .ltorg
+
+/* Replays the two instructions PATCH_JUMP replaced at OSOS_SONGS_APPEAR. */
+.global cfw_songs_appear_original
+.type cfw_songs_appear_original,%function
+cfw_songs_appear_original:
+    push {r4, r5, r6, r7, r8, r9, r10, lr}
+    sub sp, sp, #24
+    ldr pc, =OSOS_SONGS_APPEAR_RESUME
+.ltorg

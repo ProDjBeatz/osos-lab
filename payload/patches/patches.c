@@ -216,3 +216,5 @@ PATCH_CALL(OSOS_NAVIGATOR_EXECUTE_ACTION_CALL, OSOS_NAVIGATOR_EXECUTE_ACTION,
 /* Add to Playlist chooser: leave the library browser where the song list was. */
 PATCH_JUMP(OSOS_PLAYLISTS_APPEAR_CATEGORY, 0xe3a02000, 0xe591305c,
            cfw_playlists_appear_category);
+/* Diagnostics: the song list's browser when it shows again. */
+PATCH_JUMP(OSOS_SONGS_APPEAR, 0xe92d47f0, 0xe24dd018, cfw_songs_appear);
