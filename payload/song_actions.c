@@ -4,6 +4,7 @@
 #include "patch.h"
 #include "play_next.h"
 #include "playlist_add.h"
+#include "debug_log.h"
 #include "song_info.h"
 #include "song_info_ui.h"
 
@@ -54,6 +55,11 @@ static int song_action(void *controller, enum song_source source,
         /* The screen event then opens the playlist chooser. */
         if (argument != OSOS_ACTION_SUPPORT_QUERY) {
             struct osos_media_item item;
+            /* Diagnostics; only song list controllers keep a library browser. */
+            if (source == SONG_LIST || source == PLAYLIST) {
+                cfw_debug_browser("add from", controller);
+                cfw_debug_add_source = controller;
+            }
             cfw_playlist_add_select(selected_item(controller, source, &item) ? &item
                                                                                : NULL);
         }

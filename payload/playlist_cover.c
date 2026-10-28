@@ -19,6 +19,7 @@
 #include "patches/sites.h"
 #include "playlist_add.h"
 #include "playlist_rename.h"
+#include "debug_log.h"
 #include "playlist_cover.h"
 #include "playlist_cover_ui.h"
 
@@ -407,6 +408,18 @@ PATCH_ARM void cfw_navigator_action(void *controller, const char **action, void 
     typedef void (*execute)(void *, const char **, void *, uint8_t *);
     if (!returning || controller != returning || !action || !*action ||
         !cfw_string_equal(*action, "navigator.PushScreen")) {
+        /* Diagnostics: each navigator action after Add to Playlist, with the
+           song list's browser before it runs; stop once the song list itself
+           navigates (it may be gone afterwards). */
+        if (action && *action && cfw_debug_add_source) {
+            const char *name = *action;
+            if (name[0] == 'n' && name[9] == '.')
+                name += 10;
+            cfw_debug(name, (uint32_t)(uintptr_t)controller, 0);
+            cfw_debug_browser(" song list", cfw_debug_add_source);
+            if (controller == cfw_debug_add_source)
+                cfw_debug_add_source = NULL;
+        }
         ((execute)OSOS_NAVIGATOR_EXECUTE_ACTION)(controller, action, argument, stop);
         return;
     }

@@ -27,6 +27,7 @@
 #include "playlist_add.h"
 #include "playlist_add_ui.h"
 #include "playlist_rename.h"
+#include "debug_log.h"
 
 #define ADDS_MAGIC 0x41574643u    /* "CFWA" */
 #define REMOVES_MAGIC 0x52574643u /* "CFWR" */
@@ -523,6 +524,29 @@ static struct osos_media_list *shown_list(void *controller)
     return library ? library : list;
 }
 
+/* Diagnostics: a controller's library browser and the list it points at. */
+void cfw_debug_browser(const char *tag, void *controller)
+{
+    typedef void *(*get_model)(void *);
+    typedef void (*ref_init)(struct playlist_ref *, void *, int);
+    typedef void (*ref_destroy)(struct playlist_ref *);
+    typedef void (*current)(void *, struct playlist_ref *);
+    void *model = controller ? ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
+                                   (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER)
+                             : NULL;
+    cfw_debug(tag, (uint32_t)(uintptr_t)controller, (uint32_t)(uintptr_t)model);
+    if (!model)
+        return;
+    struct playlist_ref ref;
+    ((ref_init)OSOS_LIST_REF_INIT)(&ref, NULL, 0);
+    ((current)osos_method(model, OSOS_BROWSER_CURRENT_LIST_REF))(model, &ref);
+    struct osos_media_list *list = ref.list;
+    struct osos_media_entry *root = is_list(list) ? osos_list_root(list) : NULL;
+    cfw_debug(" list/tracks", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
+    cfw_debug(" ref words", ref.reserved[0], ref.reserved[1]);
+    ((ref_destroy)OSOS_LIST_REF_DESTROY)(&ref);
+}
+
 static int removable(struct osos_media_list *list)
 {
     struct osos_media_entry *root = list ? osos_list_root(list) : NULL;
@@ -600,6 +624,8 @@ static void reload_song_list(void)
     /* The reload puts the highlight on the first row: move it to the song that
        took the removed one's place (or the new last song). */
     int count = root ? root->tracks : 0;
+    cfw_debug("reloaded", (uint32_t)count, (uint32_t)row);
+    cfw_debug_browser(" shown", controller);
     if (row >= count)
         row = count - 1;
     void *view = current_list_view();
@@ -644,7 +670,12 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     /* A song picked for Add to Playlist may be this very entry. */
     if (pending == entry)
         pending = NULL;
+    struct osos_media_entry *root = osos_list_root(list);
+    cfw_debug("remove", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
+    cfw_debug(" row", (uint32_t)row, (uint32_t)(uintptr_t)controller);
+    cfw_debug_browser(" shown", controller);
     delete_entry(list, entry);
+    cfw_debug(" after", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
     forget(list, record);
     reload.controller = controller;
     reload.view = view;
@@ -666,6 +697,7 @@ static int coverflow_album = -1;
    (cfw_playlists_appear_category), instead of moving it to the Playlists
    category, which lost the album, artist or genre of the song list underneath. */
 uint32_t cfw_playlist_chooser_open;
+void *cfw_debug_add_source;
 
 void cfw_playlist_add_select(struct osos_media_item *item)
 {
@@ -762,6 +794,8 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     if (cfw_string_equal(action, "CFW_AddToPlaylistCancel")) {
         /* playlist_add.ui closes the chooser after this. */
         if (argument != OSOS_ACTION_SUPPORT_QUERY) {
+            cfw_debug("cancel flag", cfw_playlist_chooser_open, 0);
+            cfw_debug_browser(" chooser", controller);
             pending = NULL;
             cfw_playlist_chooser_open = 0;
             restore_coverflow();
@@ -773,6 +807,8 @@ int cfw_playlist_add_action(void *controller, const char *action, uint32_t argum
     if (argument == OSOS_ACTION_SUPPORT_QUERY)
         return 1;
     struct osos_media_entry *entry = pending;
+    cfw_debug("chosen flag", cfw_playlist_chooser_open, 0);
+    cfw_debug_browser(" chooser", controller);
     pending = NULL;
     cfw_playlist_chooser_open = 0;
     struct osos_media_list *list = entry ? chosen_list(controller) : NULL;
