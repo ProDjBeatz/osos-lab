@@ -289,6 +289,11 @@ class Resources:
             raise ValueError("Screen clone layout is not a layout of its screen")
         put(entries[0], 0, layout)
         self.add("SLst", screen, pack_blocks([(0, entries[0])]))
+        views = {}
+        if clone.views_from != "":
+            for _, item in blocks(self.original["SLyt", self.native(clone.views_from)]):
+                for _, instance in blocks(self.original["SSin", word(item, 0)]):
+                    views[word(instance, 4)] = word(instance, 0)
         cloned = blocks(self.original["SLyt", stock_layout])
         for _, item in cloned:
             instances = [
@@ -298,7 +303,14 @@ class Resources:
             ]
             put(item, 0, instances_id := self.allocate())
             for _, instance in instances:
-                self.clone_instance(instance, {}, title, None)
+                source = views.get(word(instance, 4))
+                # Keep the status bar's own binding: it carries the clone's title.
+                if source is not None and word(instance, 4) != self.native(
+                    "StatusBarWhite_Template"
+                ):
+                    self.clone_instance(instance, {}, title, None, views_of=source)
+                else:
+                    self.clone_instance(instance, {}, title, None)
             self.add("SSin", instances_id, pack_blocks(instances))
         self.add("SLyt", layout, pack_blocks(cloned))
         # Stock layout events are not inherited (they navigate to the stock screen's
@@ -306,7 +318,9 @@ class Resources:
         self.add("SEVT", layout, struct.pack("<I", 0))
         return screen, layout, title_id
 
-    def clone_instance(self, instance, substitutions, title_source, item_table):
+    def clone_instance(
+        self, instance, substitutions, title_source, item_table, views_of=None
+    ):
         original_id = word(instance, 0)
         new_id = self.allocate()
         put(instance, 0, new_id)
@@ -314,7 +328,7 @@ class Resources:
             original = word(instance, offset)
             put(instance, offset, substitutions.get(original, original))
         for kind in ("VCrv", "VCvs"):
-            key = kind, original_id
+            key = kind, views_of if kind == "VCvs" and views_of is not None else original_id
             if key not in self.original:
                 continue
             data = Resource(self.original[key])

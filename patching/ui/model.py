@@ -45,6 +45,9 @@ class ScreenClone:
     title: str
     # Template instances (by template resource) left out of the cloned layout.
     drop: tuple[str | int, ...] = ()
+    # Optional stock layout whose view bindings (VCvs) replace those of instances
+    # with the same template, e.g. another screen's list contents.
+    views_from: str | int = ""
 
 
 @dataclass

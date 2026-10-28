@@ -148,7 +148,7 @@ class Parser:
         elif node.tag == "screen-event":
             document.events.append(self.parse_screen_event(node))
         elif node.tag == "screen-clone":
-            attributes(node, "id screen layout title", "drop")
+            attributes(node, "id screen layout title", "drop views-from")
             document.clones.append(
                 ScreenClone(
                     self.identifier(node),
@@ -156,6 +156,9 @@ class Parser:
                     resource_reference(node.attrib["layout"]),
                     node.attrib["title"],
                     tuple(resource_reference(v) for v in node.get("drop", "").split()),
+                    resource_reference(node.attrib["views-from"])
+                    if "views-from" in node.attrib
+                    else "",
                 )
             )
         elif node.tag == "music-entry":

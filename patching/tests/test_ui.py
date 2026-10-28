@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from patching.ui import generate, parser
 from patching.ui.codegen import emit_header
 from patching.ui.compiler import DocumentCompiler, compile_document
-from patching.ui.model import ScreenEvent
+from patching.ui.model import ScreenClone, ScreenEvent
 from patching.ui.resources import (
     Resources,
     blocks,
@@ -325,6 +325,30 @@ class UiTests(unittest.TestCase):
             self.assertIn(b"CFW_PlayNext\0\0\0\0", data.data)
             self.assertIn(b"test.other1", data.data)
             self.assertEqual(resources.original["SEVT", layout], stock)
+
+    def test_screen_clone_takes_view_bindings_from_another_layout(self):
+        def instance(instance_id, template):
+            return struct.pack("<IIIII", instance_id, template, 0, 0, 0)
+
+        resources = Resources([])
+        resources.original = {
+            ("SCST", 10): b"TSearchCntlr\0",
+            ("SLst", 10): pack_blocks([(0, struct.pack("<II", 20, 0))]),
+            ("SLyt", 20): pack_blocks([(0, struct.pack("<II", 30, 1))]),
+            ("SSin", 30): pack_blocks([(0, instance(40, 7)), (0, instance(41, 8))]),
+            ("VCvs", 40): b"search-list",
+            ("VCvs", 41): b"keyboard",
+            ("SLyt", 21): pack_blocks([(0, struct.pack("<II", 31, 1))]),
+            ("SSin", 31): pack_blocks([(0, instance(50, 7))]),
+            ("VCvs", 50): b"playlists-list",
+        }
+        resources.bindings["StatusBarWhite_Template"] = 99
+        clone = ScreenClone("CFW_Test", 10, 20, "Test", views_from=21)
+        _, layout, _ = resources.clone_screen(clone)
+        item = blocks(resources.added["SLyt", layout])[0][1]
+        cloned = blocks(resources.added["SSin", word(item, 0)])
+        views = [bytes(resources.added["VCvs", word(i, 0)].data) for _, i in cloned]
+        self.assertEqual(views, [b"playlists-list", b"keyboard"])
 
     def test_screen_event_can_target_one_layout(self):
         resources = Resources([])
