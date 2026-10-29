@@ -577,11 +577,14 @@ PATCH_ARM int cfw_nested_playlists_menu(void *controller, int row)
 /* Diagnostics: the browser rebuilt after a removal, checked at the next hold
    menu. */
 static uint8_t *reload_check;
+static void *current_list_view(void);
 
 void cfw_playlist_add_menu(struct osos_context_menu *menu)
 {
-    if (reload_check)
+    if (reload_check) {
         cfw_debug("songs at menu", *(uint32_t *)(reload_check + 0xef4), 0);
+        cfw_debug_dump(" lv at menu", current_list_view(), 0x200);
+    }
     osos_context_menu_append(menu, CFW_ADD_TO_PLAYLIST, "CFW_AddToPlaylist", 1);
     if (menu_controller && removable(shown_list(menu_controller)))
         osos_context_menu_append(menu, CFW_REMOVE_FROM_PLAYLIST, "CFW_RemoveFromPlaylist",
@@ -694,6 +697,7 @@ static void reload_song_list(void)
                   *(uint32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW));
     if (browser)
         cfw_debug("songs select", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+    cfw_debug_dump(" lv selected", view, 0x200);
     reload_check = browser;
 }
 
