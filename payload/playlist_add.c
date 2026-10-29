@@ -574,17 +574,15 @@ PATCH_ARM int cfw_nested_playlists_menu(void *controller, int row)
     return result;
 }
 
-/* Diagnostics: the browser rebuilt after a removal, checked at the next hold
-   menu. */
-static uint8_t *reload_check;
+/* Diagnostics: the list view reloaded after a removal, dumped again at the next
+   hold menu. */
+static void *reload_check;
 static void *current_list_view(void);
 
 void cfw_playlist_add_menu(struct osos_context_menu *menu)
 {
-    if (reload_check) {
-        cfw_debug("songs at menu", *(uint32_t *)(reload_check + 0xef4), 0);
-        cfw_debug_dump(" lv at menu", current_list_view(), 0x200);
-    }
+    if (reload_check && reload_check == current_list_view())
+        cfw_debug_dump(" lv at menu", reload_check, 0x200);
     osos_context_menu_append(menu, CFW_ADD_TO_PLAYLIST, "CFW_AddToPlaylist", 1);
     if (menu_controller && removable(shown_list(menu_controller)))
         osos_context_menu_append(menu, CFW_REMOVE_FROM_PLAYLIST, "CFW_RemoveFromPlaylist",
@@ -611,15 +609,8 @@ static struct {
     int row;
 } reload;
 
-/* Native media browser: its song list model (+0x40), the cached song array's
-   count, and the routine that frees that array. */
+/* Native media browser of a song list model (model +0x40). */
 #define MODEL_NATIVE_BROWSER 0x40
-#define BROWSER_SONG_COUNT 0xef4
-#define BROWSER_RESET_SONGS 0x0804ebe8
-/* TListView: scroll offset (0 at the top, negative scrolled down) and the
-   first row it lays out. */
-#define LIST_VIEW_SCROLL 0x58
-#define LIST_VIEW_FIRST_ROW 0x108
 
 static void reload_song_list(void)
 {
@@ -650,25 +641,9 @@ static void reload_song_list(void)
         ((ref_destroy)OSOS_LIST_REF_DESTROY)(&none);
         set(model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
     }
-    uint8_t *browser = model ? *(uint8_t **)((uint8_t *)model + MODEL_NATIVE_BROWSER) : NULL;
-    if (browser)
-        cfw_debug("songs set", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
     void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
     if (playlists)
         ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
-    /* The song list reads each row from the native browser's song array
-       (+0xeec, count +0xef4) and does not build it; pointing the browser at the
-       playlist again (and the refresh) leave it empty, so every row redrawn
-       after a removal came out blank: the list seemed to end at the removed
-       song. Build it again, last, from the playlist as it is now. */
-    if (browser) {
-        typedef void (*reset_songs)(void *);
-        typedef uint32_t (*build_songs)(void *);
-        cfw_debug("songs refresh", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
-        ((reset_songs)BROWSER_RESET_SONGS)(browser);
-        ((build_songs)OSOS_BROWSER_BUILD_SONGS)(browser);
-        cfw_debug("songs built", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
-    }
     /* The reload puts the highlight on the first row: move it to the song that
        took the removed one's place (or the new last song). */
     int count = root ? root->tracks : 0;
@@ -682,23 +657,10 @@ static void reload_song_list(void)
     if (row >= count)
         row = count - 1;
     void *view = current_list_view();
-    /* The refresh scrolls the list view back to the top (+0x58) but leaves its
-       first shown row (+0x108) where it was, so after a removal in a scrolled
-       list the rows were laid out from the wrong place and the last ones fell
-       off. Make the two agree before scrolling to the row again. */
-    if (view && *(int32_t *)((uint8_t *)view + LIST_VIEW_SCROLL) == 0) {
-        cfw_debug("first row", *(uint32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW), 0);
-        *(int32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW) = 0;
-    }
     if (view && row > 0)
         ((select_row)osos_method(view, OSOS_LIST_VIEW_SELECT_ROW))(view, row, 1);
-    if (view)
-        cfw_debug("scrolled", *(uint32_t *)((uint8_t *)view + LIST_VIEW_SCROLL),
-                  *(uint32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW));
-    if (browser)
-        cfw_debug("songs select", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
     cfw_debug_dump(" lv selected", view, 0x200);
-    reload_check = browser;
+    reload_check = view;
 }
 
 /* End of a list view's row blink (it sends the blink's list event here). */
