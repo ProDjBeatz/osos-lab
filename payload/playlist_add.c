@@ -613,6 +613,10 @@ static struct {
 #define MODEL_NATIVE_BROWSER 0x40
 #define BROWSER_SONG_COUNT 0xef4
 #define BROWSER_RESET_SONGS 0x0804ebe8
+/* TListView: scroll offset (0 at the top, negative scrolled down) and the
+   first row it lays out. */
+#define LIST_VIEW_SCROLL 0x58
+#define LIST_VIEW_FIRST_ROW 0x108
 
 static void reload_song_list(void)
 {
@@ -675,8 +679,19 @@ static void reload_song_list(void)
     if (row >= count)
         row = count - 1;
     void *view = current_list_view();
+    /* The refresh scrolls the list view back to the top (+0x58) but leaves its
+       first shown row (+0x108) where it was, so after a removal in a scrolled
+       list the rows were laid out from the wrong place and the last ones fell
+       off. Make the two agree before scrolling to the row again. */
+    if (view && *(int32_t *)((uint8_t *)view + LIST_VIEW_SCROLL) == 0) {
+        cfw_debug("first row", *(uint32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW), 0);
+        *(int32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW) = 0;
+    }
     if (view && row > 0)
         ((select_row)osos_method(view, OSOS_LIST_VIEW_SELECT_ROW))(view, row, 1);
+    if (view)
+        cfw_debug("scrolled", *(uint32_t *)((uint8_t *)view + LIST_VIEW_SCROLL),
+                  *(uint32_t *)((uint8_t *)view + LIST_VIEW_FIRST_ROW));
     if (browser)
         cfw_debug("songs select", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
     reload_check = browser;
