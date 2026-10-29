@@ -783,9 +783,16 @@ PATCH_ARM int cfw_coverflow_appear(void *controller, int first)
 #define MODEL_NATIVE_BROWSER 0x40
 #define BROWSER_LEVELS 6
 
-/* Setter for the level at +0x0c + 4 * n: (browser, index or -1). */
+/* Setter for the level at +0x0c + 4 * n: (browser, index or -1). It refuses an
+   index past the level's item list (-50), and after the add that list is empty
+   until rebuilt. */
 static const uintptr_t level_setters[BROWSER_LEVELS] = {
     0x0805b6e8, 0x0805b5ac, 0x0805b668, 0x0805b528, 0x0805b938, 0x0805bbd0,
+};
+/* Item count of each level, building its item list first (browser, 0), as the
+   browser itself does before choosing an item. */
+static const uintptr_t level_counts[BROWSER_LEVELS] = {
+    0x08049288, 0x08048fe8, 0x080490b8, 0x08048f98, 0x08049328, 0x0804940c,
 };
 
 static int32_t kept_levels[BROWSER_LEVELS];
@@ -815,6 +822,7 @@ void cfw_playlist_add_keep_browser(void *controller)
 static void restore_browser(void *controller)
 {
     typedef int (*set_level)(void *, int);
+    typedef int (*count_level)(void *, int);
     int32_t *browser = native_browser(controller);
     if (!browser || browser != kept_browser_at)
         return;
@@ -822,8 +830,9 @@ static void restore_browser(void *controller)
     for (unsigned i = 0; i < BROWSER_LEVELS; i++) {
         if (kept_levels[i] < 0 || browser[3 + i] == kept_levels[i])
             continue;
+        int count = ((count_level)level_counts[i])(browser, 0);
         int result = ((set_level)level_setters[i])(browser, kept_levels[i]);
-        cfw_debug("reselect", i, (uint32_t)result);
+        cfw_debug("reselect", (i << 16) | (uint32_t)(count & 0xffff), (uint32_t)result);
     }
 }
 
