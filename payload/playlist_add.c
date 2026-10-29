@@ -602,6 +602,12 @@ static struct {
     int row;
 } reload;
 
+/* Native media browser: its song list model (+0x40), the cached song array's
+   count, and the routine that frees that array. */
+#define MODEL_NATIVE_BROWSER 0x40
+#define BROWSER_SONG_COUNT 0xef4
+#define BROWSER_RESET_SONGS 0x0804ebe8
+
 static void reload_song_list(void)
 {
     typedef void *(*get_model)(void *);
@@ -630,6 +636,19 @@ static void reload_song_list(void)
         set(model, &none);
         ((ref_destroy)OSOS_LIST_REF_DESTROY)(&none);
         set(model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
+        /* The song list reads each row from the native browser's song array
+           (+0xeec, count +0xef4), which still held the removed song: the rows
+           from it down came out empty. Drop the array (the browser's own song
+           cache reset) and build it again from the playlist as it is now. */
+        uint8_t *browser = *(uint8_t **)((uint8_t *)model + MODEL_NATIVE_BROWSER);
+        if (browser) {
+            typedef void (*reset_songs)(void *);
+            typedef uint32_t (*build_songs)(void *);
+            cfw_debug("songs before", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+            ((reset_songs)BROWSER_RESET_SONGS)(browser);
+            ((build_songs)OSOS_BROWSER_BUILD_SONGS)(browser);
+            cfw_debug("songs after", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+        }
     }
     void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
     if (playlists)
@@ -780,7 +799,6 @@ PATCH_ARM int cfw_coverflow_appear(void *controller, int first)
    (-1) and the song list listed every song. Keep the indexes when Add to Playlist
    starts and select them again, through the browser's own per-level setters (they
    rebuild its filter text and caches), before that song list shows again. */
-#define MODEL_NATIVE_BROWSER 0x40
 #define BROWSER_LEVELS 6
 
 /* Setter for the level at +0x0c + 4 * n: (browser, index or -1). It refuses an
