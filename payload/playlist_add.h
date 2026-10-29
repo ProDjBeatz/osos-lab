@@ -24,7 +24,5 @@ uint32_t cfw_playlist_name_hash(void *list);
    that song list shows again. */
 void cfw_playlist_add_keep_browser(void *controller);
 
-/* Diagnostics: log a controller's library browser state. */
-void cfw_debug_browser(const char *tag, void *controller);
 
 #endif

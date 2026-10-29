@@ -27,7 +27,6 @@
 #include "playlist_add.h"
 #include "playlist_add_ui.h"
 #include "playlist_rename.h"
-#include "debug_log.h"
 
 #define ADDS_MAGIC 0x41574643u    /* "CFWA" */
 #define REMOVES_MAGIC 0x52574643u /* "CFWR" */
@@ -524,31 +523,6 @@ static struct osos_media_list *shown_list(void *controller)
     return library ? library : list;
 }
 
-/* Diagnostics: a controller's library browser and the list it points at. */
-void cfw_debug_browser(const char *tag, void *controller)
-{
-    typedef void *(*get_model)(void *);
-    typedef void (*ref_init)(struct playlist_ref *, void *, int);
-    typedef void (*ref_destroy)(struct playlist_ref *);
-    typedef void (*current)(void *, struct playlist_ref *);
-    void *model = controller ? ((get_model)OSOS_LIBRARY_MODEL_REF_GET)(
-                                   (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_BROWSER)
-                             : NULL;
-    cfw_debug(tag, (uint32_t)(uintptr_t)controller, (uint32_t)(uintptr_t)model);
-    if (!model)
-        return;
-    if (tag[0] == '!')
-        cfw_debug_dump(" browser", model, 0x180);
-    struct playlist_ref ref;
-    ((ref_init)OSOS_LIST_REF_INIT)(&ref, NULL, 0);
-    ((current)osos_method(model, OSOS_BROWSER_CURRENT_LIST_REF))(model, &ref);
-    struct osos_media_list *list = ref.list;
-    struct osos_media_entry *root = is_list(list) ? osos_list_root(list) : NULL;
-    cfw_debug(" list/tracks", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
-    cfw_debug(" ref words", ref.reserved[0], ref.reserved[1]);
-    ((ref_destroy)OSOS_LIST_REF_DESTROY)(&ref);
-}
-
 static int removable(struct osos_media_list *list)
 {
     struct osos_media_entry *root = list ? osos_list_root(list) : NULL;
@@ -574,15 +548,9 @@ PATCH_ARM int cfw_nested_playlists_menu(void *controller, int row)
     return result;
 }
 
-/* Diagnostics: the list view reloaded after a removal, dumped again at the next
-   hold menu. */
-static void *reload_check;
-static void *current_list_view(void);
 
 void cfw_playlist_add_menu(struct osos_context_menu *menu)
 {
-    if (reload_check && reload_check == current_list_view())
-        cfw_debug_dump(" lv at menu", reload_check, 0x200);
     osos_context_menu_append(menu, CFW_ADD_TO_PLAYLIST, "CFW_AddToPlaylist", 1);
     if (menu_controller && removable(shown_list(menu_controller)))
         osos_context_menu_append(menu, CFW_REMOVE_FROM_PLAYLIST, "CFW_RemoveFromPlaylist",
@@ -647,20 +615,11 @@ static void reload_song_list(void)
     /* The reload puts the highlight on the first row: move it to the song that
        took the removed one's place (or the new last song). */
     int count = root ? root->tracks : 0;
-    cfw_debug("reloaded", (uint32_t)count, (uint32_t)row);
-    cfw_debug_dump(" listview", current_list_view(), 0x200);
-    {
-        typedef void *(*get)(void);
-        cfw_debug_dump(" listui", ((get)OSOS_LIST_VIEW_MODEL)(), 0x80);
-    }
-    cfw_debug_browser(" shown", controller);
     if (row >= count)
         row = count - 1;
     void *view = current_list_view();
     if (view && row > 0)
         ((select_row)osos_method(view, OSOS_LIST_VIEW_SELECT_ROW))(view, row, 1);
-    cfw_debug_dump(" lv selected", view, 0x200);
-    reload_check = view;
 }
 
 /* End of a list view's row blink (it sends the blink's list event here). */
@@ -700,13 +659,7 @@ void cfw_playlist_remove(void *controller, struct osos_media_item *item)
     /* A song picked for Add to Playlist may be this very entry. */
     if (pending == entry)
         pending = NULL;
-    struct osos_media_entry *root = osos_list_root(list);
-    cfw_debug("remove", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
-    cfw_debug(" row", (uint32_t)row, (uint32_t)(uintptr_t)controller);
-    cfw_debug_browser(" shown", controller);
-    cfw_debug_dump(" lv before", view, 0x200);
     delete_entry(list, entry);
-    cfw_debug(" after", (uint32_t)(uintptr_t)list, root ? root->tracks : 0xffff);
     forget(list, record);
     reload.controller = controller;
     reload.view = view;
@@ -827,7 +780,6 @@ void cfw_playlist_add_keep_browser(void *controller)
     kept_browser_at = browser;
     for (unsigned i = 0; browser && i < BROWSER_LEVELS; i++)
         kept_levels[i] = browser[3 + i];
-    cfw_debug("keep levels", (uint32_t)kept_levels[0], (uint32_t)kept_levels[3]);
 }
 
 static void restore_browser(void *controller)
@@ -841,9 +793,8 @@ static void restore_browser(void *controller)
     for (unsigned i = 0; i < BROWSER_LEVELS; i++) {
         if (kept_levels[i] < 0 || browser[3 + i] == kept_levels[i])
             continue;
-        int count = ((count_level)level_counts[i])(browser, 0);
-        int result = ((set_level)level_setters[i])(browser, kept_levels[i]);
-        cfw_debug("reselect", (i << 16) | (uint32_t)(count & 0xffff), (uint32_t)result);
+        ((count_level)level_counts[i])(browser, 0);
+        ((set_level)level_setters[i])(browser, kept_levels[i]);
     }
 }
 

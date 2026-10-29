@@ -211,8 +211,6 @@ static int make_cover(const struct photo_image *image, struct cover_bitmap *bitm
     return 1;
 }
 
-static void log_line(const char *what, uint32_t a, uint32_t b);
-
 static struct cover_bitmap scratch;
 
 __attribute__((optimize("no-tree-loop-distribute-patterns")))
@@ -223,12 +221,8 @@ static int set_cover(void *list, int index)
     int made = 0;
     for (int size_class = 3; !made && size_class >= 0; size_class -= 3) {
         int found = photo_image(index, size_class, &image);
-        log_line(found ? "image" : "no-image", (uint32_t)size_class,
-                 found ? (uint32_t)image.format : 0);
         if (!found)
             continue;
-        log_line("size", (uint32_t)image.width << 16 | (uint32_t)image.height,
-                 (uint32_t)image.stride);
         made = make_cover(&image, &scratch);
     }
     if (!made)
@@ -297,35 +291,6 @@ void cfw_playlist_cover_menu(struct osos_context_menu *menu)
 
 static void *returning;
 
-/* Picker log (iPod_Control\Device\CFWDebugPhoto): the last events of a pick,
-   so a failed one can be read back from the disk. */
-static struct {
-    uint32_t magic, count;
-    char lines[30][32];
-} photo_log;
-static const struct osos_path photo_log_path = {0, "iPod_Control\\Device\\CFWDebugPhoto"};
-
-static void log_line(const char *what, uint32_t a, uint32_t b)
-{
-    static const char hex[] = "0123456789abcdef";
-    char *line = photo_log.lines[photo_log.count % 30];
-    int n = 0;
-    for (; what[n] && n < 13; n++)
-        line[n] = what[n];
-    const uint32_t values[2] = {a, b};
-    for (int v = 0; v < 2; v++) {
-        line[n++] = ' ';
-        for (int shift = 28; shift >= 0; shift -= 4)
-            line[n++] = hex[(values[v] >> shift) & 15];
-    }
-    while (n < 31)
-        line[n++] = ' ';
-    line[31] = '\n';
-    photo_log.magic = 0x47474f4c;
-    photo_log.count++;
-    cfw_preferences_write(&photo_log_path, &photo_log, sizeof(photo_log));
-}
-
 /* Playlist waiting for a photo while picking; picking ends with a pick or when
    Photos is next opened some other way. */
 static int picking;
@@ -340,7 +305,6 @@ int cfw_playlist_cover_action(void *controller, const char *action, uint32_t arg
     target_list = cfw_playlist_held();
     pick_pending = target_list != NULL;
     picking = 0;
-    log_line("set-photo", (uint32_t)(uintptr_t)target_list, 0);
     /* playlist_cover.ui then opens Photos, as the main menu does. */
     return 1;
 }
@@ -354,7 +318,6 @@ static void *menu_claim(void *controller)
     pick_pending = 0;
     if (!picking)
         target_list = NULL;
-    log_line("photos-menu", (uint32_t)picking, (uint32_t)(uintptr_t)controller);
     return controller;
 }
 
@@ -390,8 +353,8 @@ PATCH_ARM int cfw_photo_browse_action(void *controller, const char *action,
     target_list = NULL;
     picking = 0;
     int index = model ? *(int *)(model + OSOS_PHOTOS_BROWSE_CURRENT) : -1;
-    int done = model && list && index >= 0 ? set_cover(list, index) : 0;
-    log_line("picked", (uint32_t)index, (uint32_t)done);
+    if (model && list && index >= 0)
+        set_cover(list, index);
     returning = controller;
     return 1;
 }
@@ -412,7 +375,6 @@ PATCH_ARM void cfw_navigator_action(void *controller, const char **action, void 
     }
     returning = NULL;
     *stop = 1;
-    log_line("return", 0, 0);
     ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
     ((void (*)(int))OSOS_NAVIGATOR_POP_TOP)(OSOS_NAVIGATOR_POP_FLAGS);
 }

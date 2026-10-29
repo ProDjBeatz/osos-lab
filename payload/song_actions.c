@@ -4,7 +4,6 @@
 #include "patch.h"
 #include "play_next.h"
 #include "playlist_add.h"
-#include "debug_log.h"
 #include "song_info.h"
 #include "song_info_ui.h"
 
