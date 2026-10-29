@@ -574,8 +574,14 @@ PATCH_ARM int cfw_nested_playlists_menu(void *controller, int row)
     return result;
 }
 
+/* Diagnostics: the browser rebuilt after a removal, checked at the next hold
+   menu. */
+static uint8_t *reload_check;
+
 void cfw_playlist_add_menu(struct osos_context_menu *menu)
 {
+    if (reload_check)
+        cfw_debug("songs at menu", *(uint32_t *)(reload_check + 0xef4), 0);
     osos_context_menu_append(menu, CFW_ADD_TO_PLAYLIST, "CFW_AddToPlaylist", 1);
     if (menu_controller && removable(shown_list(menu_controller)))
         osos_context_menu_append(menu, CFW_REMOVE_FROM_PLAYLIST, "CFW_RemoveFromPlaylist",
@@ -636,23 +642,26 @@ static void reload_song_list(void)
         set(model, &none);
         ((ref_destroy)OSOS_LIST_REF_DESTROY)(&none);
         set(model, (uint8_t *)controller + OSOS_NESTED_PLAYLISTS_LIST_REF);
-        /* The song list reads each row from the native browser's song array
-           (+0xeec, count +0xef4), which still held the removed song: the rows
-           from it down came out empty. Drop the array (the browser's own song
-           cache reset) and build it again from the playlist as it is now. */
-        uint8_t *browser = *(uint8_t **)((uint8_t *)model + MODEL_NATIVE_BROWSER);
-        if (browser) {
-            typedef void (*reset_songs)(void *);
-            typedef uint32_t (*build_songs)(void *);
-            cfw_debug("songs before", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
-            ((reset_songs)BROWSER_RESET_SONGS)(browser);
-            ((build_songs)OSOS_BROWSER_BUILD_SONGS)(browser);
-            cfw_debug("songs after", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
-        }
     }
+    uint8_t *browser = model ? *(uint8_t **)((uint8_t *)model + MODEL_NATIVE_BROWSER) : NULL;
+    if (browser)
+        cfw_debug("songs set", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
     void *playlists = ((instance)OSOS_PLAYLISTS_GET)();
     if (playlists)
         ((refresh)osos_method(playlists, OSOS_PLAYLISTS_REFRESH))(playlists, 0);
+    /* The song list reads each row from the native browser's song array
+       (+0xeec, count +0xef4) and does not build it; pointing the browser at the
+       playlist again (and the refresh) leave it empty, so every row redrawn
+       after a removal came out blank: the list seemed to end at the removed
+       song. Build it again, last, from the playlist as it is now. */
+    if (browser) {
+        typedef void (*reset_songs)(void *);
+        typedef uint32_t (*build_songs)(void *);
+        cfw_debug("songs refresh", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+        ((reset_songs)BROWSER_RESET_SONGS)(browser);
+        ((build_songs)OSOS_BROWSER_BUILD_SONGS)(browser);
+        cfw_debug("songs built", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+    }
     /* The reload puts the highlight on the first row: move it to the song that
        took the removed one's place (or the new last song). */
     int count = root ? root->tracks : 0;
@@ -668,6 +677,9 @@ static void reload_song_list(void)
     void *view = current_list_view();
     if (view && row > 0)
         ((select_row)osos_method(view, OSOS_LIST_VIEW_SELECT_ROW))(view, row, 1);
+    if (browser)
+        cfw_debug("songs select", *(uint32_t *)(browser + BROWSER_SONG_COUNT), 0);
+    reload_check = browser;
 }
 
 /* End of a list view's row blink (it sends the blink's list event here). */
